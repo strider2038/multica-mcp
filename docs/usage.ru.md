@@ -20,6 +20,7 @@ make build
 export MULTICA_BASE_URL=https://multica.ai
 export MULTICA_TOKEN=mul_ваш_токен
 export MULTICA_WORKSPACE_ID=ws_abc123  # необязательно, если у вас одно пространство
+# или: export MULTICA_WORKSPACE_SLUG=my-team  # вместо ID; если заданы оба, используется slug
 ```
 
 Получить токен: Multica → Настройки → Personal Access Tokens → Создать.
@@ -249,7 +250,7 @@ multica-mcp.example.com {
 
 ### «multiple workspaces found»
 
-Установите `MULTICA_WORKSPACE_ID` вручную. Узнать ID можно через CLI: `multica workspace list`.
+Установите `MULTICA_WORKSPACE_ID` или `MULTICA_WORKSPACE_SLUG` вручную. Узнать ID и slug можно через CLI: `multica workspace list`.
 
 ### 401 Unauthorized
 

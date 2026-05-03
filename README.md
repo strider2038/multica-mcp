@@ -1,6 +1,6 @@
 # multica-mcp-server
 
-MCP server for [Multica](https://multica.ai) — the open-source managed agents platform. Allows local coding agents (Claude Code, OpenCode, Codex, etc.) to interact with Multica projects, tasks, comments, and agents via the Model Context Protocol.
+MCP server for [Multica](https://multica.ai) — the open-source managed agents platform. Allows local coding agents (Cursor, Claude Code, OpenCode, Codex, etc.) to interact with Multica projects, tasks, comments, and agents via the Model Context Protocol.
 
 ## Features
 
@@ -22,10 +22,14 @@ make build
 ### Configure
 
 ```bash
-export MULTICA_BASE_URL=https://multica.ai    # or your self-hosted URL
-export MULTICA_TOKEN=mul_your_token_here       # personal access token
-export MULTICA_WORKSPACE_ID=ws_abc123          # optional if you have one workspace
-export MCP_TRANSPORT=stdio                     # stdio (default) or http
+export MULTICA_BASE_URL=https://multica.ai   # or your self-hosted Multica URL
+export MULTICA_TOKEN=mul_your_token_here       # required: PAT from Multica settings
+
+# Workspace (pick one strategy — see Configuration below)
+# export MULTICA_WORKSPACE_ID=550e8400-e29b-41d4-a716-446655440000
+# export MULTICA_WORKSPACE_SLUG=my-team
+
+export MCP_TRANSPORT=stdio                    # stdio (default) or http
 export LOG_LEVEL=info                          # debug, info, warn, error
 ```
 
@@ -41,43 +45,52 @@ MCP_TRANSPORT=http ./bin/multica-mcp-server
 
 ## Configuration
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `MULTICA_BASE_URL` | Yes | — | Multica server URL |
-| `MULTICA_TOKEN` | Yes | — | Personal access token (PAT) |
-| `MULTICA_WORKSPACE_ID` | No* | auto | Workspace ID. Auto-detected if you have one workspace |
-| `MCP_TRANSPORT` | No | `stdio` | Transport: `stdio` or `http` |
-| `MCP_HTTP_PORT` | No | `8080` | HTTP server port (when transport=http) |
-| `MCP_API_KEY` | No | — | API key for HTTP authentication. Required for self-hosted |
-| `LOG_LEVEL` | No | `info` | Log level: debug, info, warn, error |
-| `MULTICA_READ_ONLY` | No | `false` | Disable all write operations |
+Environment variables are read at process startup (`internal/config`). The Multica HTTP client sends `X-Workspace-ID` or `X-Workspace-Slug` on workspace-scoped routes (see `internal/multica/client.go`).
 
-*Required when you belong to multiple workspaces.
+### Environment variables
+
+| Variable | Required | Default | Description |
+| -------- | -------- | ------- | ----------- |
+| `MULTICA_BASE_URL` | **Yes** | — | Base URL of your Multica instance (e.g. `https://multica.ai` or self-hosted origin). |
+| `MULTICA_TOKEN` | **Yes** | — | Personal access token (PAT), usually prefixed with `mul_`. |
+| `MULTICA_WORKSPACE_ID` | No† | auto | Workspace UUID. If unset and your account has **exactly one** workspace, its ID is detected automatically. Ignored for API headers when `MULTICA_WORKSPACE_SLUG` is set. |
+| `MULTICA_WORKSPACE_SLUG` | No† | — | Workspace slug (human-readable id, e.g. `acme-backend`). Sent as `X-Workspace-Slug`. If set (non-empty after trim), it **takes precedence** over `MULTICA_WORKSPACE_ID`. |
+| `MCP_TRANSPORT` | No | `stdio` | `stdio` (pipe to the IDE/agent) or `http` (standalone MCP HTTP server). |
+| `MCP_HTTP_PORT` | No | `8080` | Listen port when `MCP_TRANSPORT=http`. |
+| `MCP_API_KEY` | No | — | When set, HTTP transport requires `Authorization: Bearer <key>` on MCP requests. Recommended for exposed HTTP deployments. |
+| `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` (structured logs via `slog`). |
+| `MULTICA_READ_ONLY` | No | `false` | If `true`, write MCP tools return an error without calling the Multica API. |
+
+† **Workspace:** You must end up with a resolvable workspace: either auto-detection (single workspace), or set **`MULTICA_WORKSPACE_ID`** or **`MULTICA_WORKSPACE_SLUG`**. If your account has **multiple** workspaces and neither variable is set, the server exits and prints the available workspaces — then set one of the two variables.
 
 ## MCP Tools
 
 ### Read Operations
 
-| Tool | Description |
-|---|---|
-| `multica_list_projects` | List projects (optional name filter) |
-| `multica_get_project` | Get project details |
-| `multica_list_tasks` | List tasks with filters (project, status, assignee, query) |
-| `multica_get_task` | Get task with comments and subtasks |
-| `multica_search_tasks` | Full-text search across titles, descriptions, comments |
-| `multica_list_agents` | List workspace agents |
-| `multica_plan_task_breakdown` | Generate a subtask plan (no tasks created) |
+
+| Tool                          | Description                                                |
+| ----------------------------- | ---------------------------------------------------------- |
+| `multica_list_projects`       | List projects (optional name filter)                       |
+| `multica_get_project`         | Get project details                                        |
+| `multica_list_tasks`          | List tasks with filters (project, status, assignee, query) |
+| `multica_get_task`            | Get task with comments and subtasks                        |
+| `multica_search_tasks`        | Full-text search across titles, descriptions, comments     |
+| `multica_list_agents`         | List workspace agents                                      |
+| `multica_plan_task_breakdown` | Generate a subtask plan (no tasks created)                 |
+
 
 ### Write Operations (disabled in read-only mode)
 
-| Tool | Description |
-|---|---|
-| `multica_create_task` | Create a task |
-| `multica_create_subtask` | Create a subtask under a parent task |
-| `multica_update_task` | Update task fields |
-| `multica_add_comment` | Add a comment to a task |
-| `multica_assign_task` | Assign task to member or agent |
-| `multica_create_task_with_subtasks` | Create parent + subtasks atomically |
+
+| Tool                                | Description                          |
+| ----------------------------------- | ------------------------------------ |
+| `multica_create_task`               | Create a task                        |
+| `multica_create_subtask`            | Create a subtask under a parent task |
+| `multica_update_task`               | Update task fields                   |
+| `multica_add_comment`               | Add a comment to a task              |
+| `multica_assign_task`               | Assign task to member or agent       |
+| `multica_create_task_with_subtasks` | Create parent + subtasks atomically  |
+
 
 ### Task Statuses
 
@@ -96,6 +109,7 @@ MCP_TRANSPORT=http ./bin/multica-mcp-server
 ```
 
 Response:
+
 ```json
 [
   {"id": "p1", "title": "Backend API", "status": "active", "issue_count": 12}
@@ -130,7 +144,54 @@ Response:
 }
 ```
 
-## Agent Configuration
+## Agent configuration
+
+Use the same environment variables as in the table above. Prefer an **absolute path** to `multica-mcp-server` in `command`.
+
+### Cursor
+
+1. **Project MCP:** add `.cursor/mcp.json` in the project root, **or** user-level config (often `~/.cursor/mcp.json` on Linux/macOS — depends on Cursor version). You can also use **Cursor Settings → MCP** to register the server in the UI.
+2. Set `command` to the full path of your built binary (output of `make build` is `bin/multica-mcp-server` relative to this repo).
+3. Reload MCP servers after editing (Command Palette: “MCP: Restart” / restart Cursor).
+
+Example **`.cursor/mcp.json`** (workspace by **slug**; swap for `MULTICA_WORKSPACE_ID` if you prefer UUID):
+
+```json
+{
+  "mcpServers": {
+    "multica": {
+      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp-server",
+      "env": {
+        "MULTICA_BASE_URL": "https://multica.ai",
+        "MULTICA_TOKEN": "mul_your_personal_access_token",
+        "MULTICA_WORKSPACE_SLUG": "my-workspace-slug",
+        "MCP_TRANSPORT": "stdio",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
+```
+
+Example with **workspace UUID** instead of slug (do not set both unless you intend slug to win):
+
+```json
+{
+  "mcpServers": {
+    "multica": {
+      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp-server",
+      "env": {
+        "MULTICA_BASE_URL": "https://multica.ai",
+        "MULTICA_TOKEN": "mul_your_personal_access_token",
+        "MULTICA_WORKSPACE_ID": "550e8400-e29b-41d4-a716-446655440000",
+        "MULTICA_READ_ONLY": "false"
+      }
+    }
+  }
+}
+```
+
+Optional extras you can add under `env`: `MULTICA_READ_ONLY=true`, `LOG_LEVEL=debug`, or (for HTTP mode) `MCP_TRANSPORT=http`, `MCP_HTTP_PORT=8080`, `MCP_API_KEY=...`.
 
 ### Claude Code (`.claude/settings.json`)
 
@@ -142,12 +203,14 @@ Response:
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_your_token",
-        "MULTICA_WORKSPACE_ID": "ws_abc123"
+        "MULTICA_WORKSPACE_ID": "550e8400-e29b-41d4-a716-446655440000"
       }
     }
   }
 }
 ```
+
+You can replace `MULTICA_WORKSPACE_ID` with `MULTICA_WORKSPACE_SLUG` when you configure by slug.
 
 ### OpenCode (`opencode.json`)
 
@@ -155,10 +218,11 @@ Response:
 {
   "mcp": {
     "multica": {
-      "command": "multica-mcp-server",
+      "command": "/path/to/multica-mcp-server",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
-        "MULTICA_TOKEN": "mul_your_token"
+        "MULTICA_TOKEN": "mul_your_token",
+        "MULTICA_WORKSPACE_SLUG": "my-workspace-slug"
       }
     }
   }

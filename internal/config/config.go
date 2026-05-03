@@ -7,13 +7,15 @@ import (
 )
 
 type Config struct {
-	MulticaBaseURL string
-	MulticaToken   string
-	MCPTransport   string
-	LogLevel       string
-	HTTPPort       int
-	ReadOnly       bool
-	MCPAPIKey      string
+	MulticaBaseURL       string
+	MulticaToken         string
+	MulticaWorkspaceID   string
+	MulticaWorkspaceSlug string
+	MCPTransport         string
+	LogLevel             string
+	HTTPPort             int
+	ReadOnly             bool
+	MCPAPIKey            string
 }
 
 func Load() (*Config, error) {
@@ -36,15 +38,19 @@ func Load() (*Config, error) {
 	logLevel := getEnv("LOG_LEVEL", "info")
 	readOnly := getEnvBool("MULTICA_READ_ONLY", false)
 	apiKey := getEnv("MCP_API_KEY", "")
+	workspaceID := getEnv("MULTICA_WORKSPACE_ID", "")
+	workspaceSlug := getEnv("MULTICA_WORKSPACE_SLUG", "")
 
 	return &Config{
-		MulticaBaseURL: baseURL,
-		MulticaToken:   token,
-		MCPTransport:   transport,
-		LogLevel:       logLevel,
-		HTTPPort:       httpPort,
-		ReadOnly:       readOnly,
-		MCPAPIKey:      apiKey,
+		MulticaBaseURL:       baseURL,
+		MulticaToken:         token,
+		MulticaWorkspaceID:   workspaceID,
+		MulticaWorkspaceSlug: workspaceSlug,
+		MCPTransport:         transport,
+		LogLevel:             logLevel,
+		HTTPPort:             httpPort,
+		ReadOnly:             readOnly,
+		MCPAPIKey:            apiKey,
 	}, nil
 }
 

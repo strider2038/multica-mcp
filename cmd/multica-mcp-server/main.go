@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,16 +36,24 @@ func main() {
 
 	client := multica.NewClient(cfg.MulticaBaseURL, cfg.MulticaToken)
 
-	wsID := os.Getenv("MULTICA_WORKSPACE_ID")
-	if wsID == "" {
-		wsID = resolveWorkspace(client)
-	}
-	if wsID == "" {
-		fmt.Fprintf(os.Stderr, "MULTICA_WORKSPACE_ID is required or a single workspace must exist\n")
-		os.Exit(1)
+	slug := strings.TrimSpace(cfg.MulticaWorkspaceSlug)
+	wsID := strings.TrimSpace(cfg.MulticaWorkspaceID)
+	if slug != "" {
+		client.SetWorkspaceScope("", slug)
+		slog.Info("workspace scope from slug", "slug", slug)
+	} else {
+		if wsID == "" {
+			wsID = resolveWorkspace(client)
+		}
+		if wsID == "" {
+			fmt.Fprintf(os.Stderr, "MULTICA_WORKSPACE_ID or MULTICA_WORKSPACE_SLUG is required, or a single workspace must exist\n")
+			os.Exit(1)
+		}
+		client.SetWorkspaceScope(wsID, "")
+		slog.Info("workspace scope from id")
 	}
 
-	useCase := app.NewUseCase(client, wsID, cfg.ReadOnly)
+	useCase := app.NewUseCase(client, cfg.ReadOnly)
 	mcpSrv := mcpserver.NewServer(useCase, cfg.ReadOnly)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -69,9 +78,13 @@ func resolveWorkspace(client *multica.Client) string {
 		return workspaces[0].ID
 	}
 	if len(workspaces) > 1 {
-		fmt.Fprintf(os.Stderr, "multiple workspaces found; set MULTICA_WORKSPACE_ID to one of:\n")
+		fmt.Fprintf(os.Stderr, "multiple workspaces found; set MULTICA_WORKSPACE_ID or MULTICA_WORKSPACE_SLUG to one of:\n")
 		for _, ws := range workspaces {
-			fmt.Fprintf(os.Stderr, "  %s (%s)\n", ws.ID, ws.Name)
+			slug := ws.Slug
+			if slug == "" {
+				slug = "(no slug)"
+			}
+			fmt.Fprintf(os.Stderr, "  %s (%s) slug=%s\n", ws.ID, ws.Name, slug)
 		}
 	}
 	return ""

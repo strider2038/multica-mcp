@@ -11,16 +11,14 @@ import (
 )
 
 type UseCase struct {
-	client      *multica.Client
-	workspaceID string
-	readOnly    bool
+	client   *multica.Client
+	readOnly bool
 }
 
-func NewUseCase(client *multica.Client, workspaceID string, readOnly bool) *UseCase {
+func NewUseCase(client *multica.Client, readOnly bool) *UseCase {
 	return &UseCase{
-		client:      client,
-		workspaceID: workspaceID,
-		readOnly:    readOnly,
+		client:   client,
+		readOnly: readOnly,
 	}
 }
 
@@ -33,36 +31,36 @@ func (u *UseCase) checkReadOnly() error {
 
 func (u *UseCase) ListProjects(ctx context.Context, input domain.ListProjectsInput) ([]domain.Project, error) {
 	if input.Query != "" {
-		return u.client.SearchProjects(ctx, u.workspaceID, input.Query)
+		return u.client.SearchProjects(ctx, input.Query)
 	}
-	return u.client.ListProjects(ctx, u.workspaceID, "")
+	return u.client.ListProjects(ctx)
 }
 
 func (u *UseCase) GetProject(ctx context.Context, input domain.GetProjectInput) (*domain.Project, error) {
-	return u.client.GetProject(ctx, u.workspaceID, input.ProjectID)
+	return u.client.GetProject(ctx, input.ProjectID)
 }
 
 func (u *UseCase) ListTasks(ctx context.Context, input domain.ListTasksInput) ([]domain.Task, error) {
 	if input.Query != nil && *input.Query != "" {
-		return u.client.SearchIssues(ctx, u.workspaceID, *input.Query, &input.ProjectID, input.Status, input.Limit)
+		return u.client.SearchIssues(ctx, *input.Query, &input.ProjectID, input.Status, input.Limit)
 	}
-	return u.client.ListTasks(ctx, u.workspaceID, input)
+	return u.client.ListTasks(ctx, input)
 }
 
 func (u *UseCase) GetTask(ctx context.Context, input domain.GetTaskInput) (*domain.Task, error) {
-	task, err := u.client.GetTask(ctx, u.workspaceID, input.TaskID)
+	task, err := u.client.GetTask(ctx, input.TaskID)
 	if err != nil {
 		return nil, err
 	}
 
-	comments, err := u.client.ListComments(ctx, u.workspaceID, input.TaskID)
+	comments, err := u.client.ListComments(ctx, input.TaskID)
 	if err != nil {
 		slog.Warn("failed to load comments for task", "task_id", input.TaskID, "error", err)
 	} else {
 		task.Comments = comments
 	}
 
-	children, err := u.client.ListChildIssues(ctx, u.workspaceID, input.TaskID)
+	children, err := u.client.ListChildIssues(ctx, input.TaskID)
 	if err != nil {
 		slog.Warn("failed to load subtasks for task", "task_id", input.TaskID, "error", err)
 	} else {
@@ -85,7 +83,7 @@ func (u *UseCase) CreateTask(ctx context.Context, input domain.CreateTaskInput) 
 		}, nil
 	}
 
-	task, err := u.client.CreateTask(ctx, u.workspaceID, input)
+	task, err := u.client.CreateTask(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +109,7 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 		}, nil
 	}
 
-	task, err := u.client.GetTask(ctx, u.workspaceID, input.ParentTaskID)
+	task, err := u.client.GetTask(ctx, input.ParentTaskID)
 	if err != nil {
 		return nil, fmt.Errorf("parent task not found: %w", err)
 	}
@@ -125,7 +123,7 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 		createInput.ProjectID = *task.ProjectID
 	}
 
-	result, err := u.client.CreateTask(ctx, u.workspaceID, createInput)
+	result, err := u.client.CreateTask(ctx, createInput)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +153,7 @@ func (u *UseCase) UpdateTask(ctx context.Context, input domain.UpdateTaskInput) 
 		}, nil
 	}
 
-	task, err := u.client.UpdateTask(ctx, u.workspaceID, input.TaskID, input)
+	task, err := u.client.UpdateTask(ctx, input.TaskID, input)
 	if err != nil {
 		return nil, err
 	}
@@ -172,11 +170,11 @@ func (u *UseCase) AddComment(ctx context.Context, input domain.AddCommentInput) 
 	if err := u.checkReadOnly(); err != nil {
 		return nil, err
 	}
-	return u.client.CreateComment(ctx, u.workspaceID, input.TaskID, input.Comment)
+	return u.client.CreateComment(ctx, input.TaskID, input.Comment)
 }
 
 func (u *UseCase) ListAgents(ctx context.Context, input domain.ListAgentsInput) ([]domain.Agent, error) {
-	return u.client.ListAgents(ctx, u.workspaceID)
+	return u.client.ListAgents(ctx)
 }
 
 func (u *UseCase) AssignTask(ctx context.Context, input domain.AssignTaskInput) (*domain.CreateTaskResult, error) {
@@ -189,7 +187,7 @@ func (u *UseCase) AssignTask(ctx context.Context, input domain.AssignTaskInput) 
 		Assignee: &input.AssigneeID,
 	}
 
-	task, err := u.client.UpdateTask(ctx, u.workspaceID, input.TaskID, updateInput)
+	task, err := u.client.UpdateTask(ctx, input.TaskID, updateInput)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +201,7 @@ func (u *UseCase) AssignTask(ctx context.Context, input domain.AssignTaskInput) 
 }
 
 func (u *UseCase) SearchTasks(ctx context.Context, input domain.SearchTasksInput) ([]domain.Task, error) {
-	return u.client.SearchIssues(ctx, u.workspaceID, input.Query, input.ProjectID, input.Status, input.Limit)
+	return u.client.SearchIssues(ctx, input.Query, input.ProjectID, input.Status, input.Limit)
 }
 
 func (u *UseCase) PlanTaskBreakdown(ctx context.Context, input domain.PlanTaskBreakdownInput) (*domain.PlanTaskBreakdownOutput, error) {
@@ -245,7 +243,7 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 		Assignee:    input.Assignee,
 	}
 
-	parent, err := u.client.CreateTask(ctx, u.workspaceID, parentInput)
+	parent, err := u.client.CreateTask(ctx, parentInput)
 	if err != nil {
 		return nil, fmt.Errorf("create parent task: %w", err)
 	}
@@ -268,7 +266,7 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 			Assignee:    input.Assignee,
 		}
 
-		subTask, err := u.client.CreateTask(ctx, u.workspaceID, subInput)
+		subTask, err := u.client.CreateTask(ctx, subInput)
 		if err != nil {
 			slog.Warn("failed to create subtask", "title", sub.Title, "error", err)
 			continue
@@ -278,7 +276,7 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 			TaskID: subTask.ID,
 		}
 
-		_, updateErr := u.client.UpdateTask(ctx, u.workspaceID, subTask.ID, updateInput)
+		_, updateErr := u.client.UpdateTask(ctx, subTask.ID, updateInput)
 		if updateErr != nil {
 			slog.Warn("failed to set parent for subtask", "subtask_id", subTask.ID, "parent_id", parent.ID, "error", updateErr)
 		}
@@ -295,7 +293,7 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 }
 
 func (u *UseCase) ResolveProjectReference(ctx context.Context, ref string) (string, error) {
-	projects, err := u.client.ListProjects(ctx, u.workspaceID, "")
+	projects, err := u.client.ListProjects(ctx)
 	if err != nil {
 		return "", err
 	}

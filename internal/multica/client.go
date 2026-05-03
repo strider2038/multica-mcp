@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -15,9 +16,11 @@ import (
 )
 
 type Client struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
+	baseURL       string
+	token         string
+	httpClient    *http.Client
+	workspaceID   string
+	workspaceSlug string
 }
 
 func NewClient(baseURL, token string) *Client {
@@ -28,6 +31,33 @@ func NewClient(baseURL, token string) *Client {
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// SetWorkspaceScope sets how workspace-scoped API routes identify the workspace.
+// Use either id (UUID) or slug; when slug is non-empty it is sent as X-Workspace-Slug
+// (Multica resolves it first). When slug is empty, id is sent as X-Workspace-ID.
+func (c *Client) SetWorkspaceScope(id, slug string) {
+	c.workspaceID = id
+	c.workspaceSlug = slug
+}
+
+func (c *Client) workspaceAttrs() []any {
+	if c.workspaceSlug != "" {
+		return []any{"workspace_slug", c.workspaceSlug}
+	}
+	return []any{"workspace_id", c.workspaceID}
+}
+
+func (c *Client) attachWorkspaceHeaders(req *http.Request) error {
+	if c.workspaceSlug != "" {
+		req.Header.Set("X-Workspace-Slug", c.workspaceSlug)
+		return nil
+	}
+	if c.workspaceID != "" {
+		req.Header.Set("X-Workspace-ID", c.workspaceID)
+		return nil
+	}
+	return fmt.Errorf("multica client: workspace scope not configured (call SetWorkspaceScope with id or slug)")
 }
 
 type apiError struct {
@@ -70,7 +100,7 @@ type searchIssueItem struct {
 
 func (c *Client) ListWorkspaces(ctx context.Context) ([]domain.Workspace, error) {
 	var resp listWorkspacesResponse
-	if err := c.doGet(ctx, "/api/workspaces", &resp); err != nil {
+	if err := c.doGet(ctx, "/api/workspaces", &resp, false); err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
 	}
 	return resp.Workspaces, nil
@@ -78,83 +108,76 @@ func (c *Client) ListWorkspaces(ctx context.Context) ([]domain.Workspace, error)
 
 func (c *Client) GetWorkspace(ctx context.Context, id string) (*domain.Workspace, error) {
 	var resp domain.Workspace
-	if err := c.doGet(ctx, "/api/workspaces/"+id, &resp); err != nil {
+	if err := c.doGet(ctx, "/api/workspaces/"+id, &resp, false); err != nil {
 		return nil, fmt.Errorf("get workspace %s: %w", id, err)
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListProjects(ctx context.Context, workspaceID string, query string) ([]domain.Project, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/projects", workspaceID)
-	if query != "" {
-		path += "?q=" + query
-	}
+func (c *Client) ListProjects(ctx context.Context) ([]domain.Project, error) {
+	path := "/api/projects"
 	var resp listProjectsResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
 	return resp.Projects, nil
 }
 
-func (c *Client) GetProject(ctx context.Context, workspaceID, projectID string) (*domain.Project, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/projects/%s", workspaceID, projectID)
+func (c *Client) GetProject(ctx context.Context, projectID string) (*domain.Project, error) {
+	path := "/api/projects/" + projectID
 	var resp domain.Project
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("get project %s: %w", projectID, err)
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListTasks(ctx context.Context, workspaceID string, opts domain.ListTasksInput) ([]domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues?", workspaceID)
-	params := []string{}
+func (c *Client) ListTasks(ctx context.Context, opts domain.ListTasksInput) ([]domain.Task, error) {
+	q := url.Values{}
 	if opts.ProjectID != "" {
-		params = append(params, "project_id="+opts.ProjectID)
+		q.Set("project_id", opts.ProjectID)
 	}
 	if opts.Status != nil && *opts.Status != "" {
-		params = append(params, "status="+*opts.Status)
+		q.Set("status", *opts.Status)
 	}
 	if opts.Assignee != nil && *opts.Assignee != "" {
-		params = append(params, "assignee_id="+*opts.Assignee)
+		q.Set("assignee_id", *opts.Assignee)
 	}
 	if opts.Limit != nil && *opts.Limit > 0 {
-		params = append(params, "limit="+strconv.Itoa(*opts.Limit))
+		q.Set("limit", strconv.Itoa(*opts.Limit))
 	}
-	for i, p := range params {
-		if i == 0 {
-			path += p
-		} else {
-			path += "&" + p
-		}
+	path := "/api/issues"
+	if enc := q.Encode(); enc != "" {
+		path += "?" + enc
 	}
 
 	var resp listIssuesResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
 	}
 	return resp.Issues, nil
 }
 
-func (c *Client) GetTask(ctx context.Context, workspaceID, taskID string) (*domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/%s", workspaceID, taskID)
+func (c *Client) GetTask(ctx context.Context, taskID string) (*domain.Task, error) {
+	path := "/api/issues/" + taskID
 	var resp domain.Task
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("get task %s: %w", taskID, err)
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListChildIssues(ctx context.Context, workspaceID, parentID string) ([]domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/%s/children", workspaceID, parentID)
+func (c *Client) ListChildIssues(ctx context.Context, parentID string) ([]domain.Task, error) {
+	path := "/api/issues/" + parentID + "/children"
 	var resp listIssuesResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("list child issues for %s: %w", parentID, err)
 	}
 	return resp.Issues, nil
 }
 
-func (c *Client) CreateTask(ctx context.Context, workspaceID string, input domain.CreateTaskInput) (*domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues", workspaceID)
+func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (*domain.Task, error) {
+	path := "/api/issues"
 	body := map[string]any{
 		"title":       input.Title,
 		"description": input.Description,
@@ -170,15 +193,15 @@ func (c *Client) CreateTask(ctx context.Context, workspaceID string, input domai
 	}
 
 	var resp domain.Task
-	if err := c.doPost(ctx, path, body, &resp); err != nil {
+	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
 		return nil, fmt.Errorf("create task: %w", err)
 	}
-	slog.Info("task created", "task_id", resp.ID, "title", resp.Title, "workspace_id", workspaceID)
+	slog.Info("task created", append([]any{"task_id", resp.ID, "title", resp.Title}, c.workspaceAttrs()...)...)
 	return &resp, nil
 }
 
-func (c *Client) UpdateTask(ctx context.Context, workspaceID, taskID string, input domain.UpdateTaskInput) (*domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/%s", workspaceID, taskID)
+func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.UpdateTaskInput) (*domain.Task, error) {
+	path := "/api/issues/" + taskID
 	body := map[string]any{}
 	if input.Title != nil {
 		body["title"] = *input.Title
@@ -202,58 +225,60 @@ func (c *Client) UpdateTask(ctx context.Context, workspaceID, taskID string, inp
 	}
 
 	var resp domain.Task
-	if err := c.doPut(ctx, path, body, &resp); err != nil {
+	if err := c.doPut(ctx, path, body, &resp, true); err != nil {
 		return nil, fmt.Errorf("update task %s: %w", taskID, err)
 	}
-	slog.Info("task updated", "task_id", taskID, "workspace_id", workspaceID)
+	slog.Info("task updated", append([]any{"task_id", taskID}, c.workspaceAttrs()...)...)
 	return &resp, nil
 }
 
-func (c *Client) ListComments(ctx context.Context, workspaceID, issueID string) ([]domain.Comment, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/%s/comments", workspaceID, issueID)
+func (c *Client) ListComments(ctx context.Context, issueID string) ([]domain.Comment, error) {
+	path := "/api/issues/" + issueID + "/comments"
 	var resp listCommentsResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("list comments for issue %s: %w", issueID, err)
 	}
 	return resp, nil
 }
 
-func (c *Client) CreateComment(ctx context.Context, workspaceID, issueID, content string) (*domain.Comment, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/%s/comments", workspaceID, issueID)
+func (c *Client) CreateComment(ctx context.Context, issueID, content string) (*domain.Comment, error) {
+	path := "/api/issues/" + issueID + "/comments"
 	body := map[string]any{
 		"content": content,
 	}
 	var resp domain.Comment
-	if err := c.doPost(ctx, path, body, &resp); err != nil {
+	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
 		return nil, fmt.Errorf("create comment on issue %s: %w", issueID, err)
 	}
-	slog.Info("comment created", "comment_id", resp.ID, "issue_id", issueID, "workspace_id", workspaceID)
+	slog.Info("comment created", append([]any{"comment_id", resp.ID, "issue_id", issueID}, c.workspaceAttrs()...)...)
 	return &resp, nil
 }
 
-func (c *Client) ListAgents(ctx context.Context, workspaceID string) ([]domain.Agent, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/agents", workspaceID)
+func (c *Client) ListAgents(ctx context.Context) ([]domain.Agent, error) {
+	path := "/api/agents"
 	var resp listAgentsResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
 	return resp, nil
 }
 
-func (c *Client) SearchIssues(ctx context.Context, workspaceID, query string, projectID *string, status *string, limit *int) ([]domain.Task, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/issues/search?q=%s", workspaceID, query)
+func (c *Client) SearchIssues(ctx context.Context, query string, projectID *string, status *string, limit *int) ([]domain.Task, error) {
+	q := url.Values{}
+	q.Set("q", query)
 	if projectID != nil && *projectID != "" {
-		path += "&project_id=" + *projectID
+		q.Set("project_id", *projectID)
 	}
 	if status != nil && *status != "" {
-		path += "&status=" + *status
+		q.Set("status", *status)
 	}
 	if limit != nil && *limit > 0 {
-		path += "&limit=" + strconv.Itoa(*limit)
+		q.Set("limit", strconv.Itoa(*limit))
 	}
+	path := "/api/issues/search?" + q.Encode()
 
 	var resp searchIssuesResponse
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("search issues: %w", err)
 	}
 	result := make([]domain.Task, len(resp.Issues))
@@ -263,31 +288,33 @@ func (c *Client) SearchIssues(ctx context.Context, workspaceID, query string, pr
 	return result, nil
 }
 
-func (c *Client) SearchProjects(ctx context.Context, workspaceID, query string) ([]domain.Project, error) {
-	path := fmt.Sprintf("/api/workspaces/%s/projects/search?q=%s", workspaceID, query)
+func (c *Client) SearchProjects(ctx context.Context, query string) ([]domain.Project, error) {
+	q := url.Values{}
+	q.Set("q", query)
+	path := "/api/projects/search?" + q.Encode()
 	var resp struct {
 		Projects []domain.Project `json:"projects"`
 		Total    int              `json:"total"`
 	}
-	if err := c.doGet(ctx, path, &resp); err != nil {
+	if err := c.doGet(ctx, path, &resp, true); err != nil {
 		return nil, fmt.Errorf("search projects: %w", err)
 	}
 	return resp.Projects, nil
 }
 
-func (c *Client) doGet(ctx context.Context, path string, result any) error {
-	return c.doRequest(ctx, http.MethodGet, path, nil, result)
+func (c *Client) doGet(ctx context.Context, path string, result any, scoped bool) error {
+	return c.doRequest(ctx, http.MethodGet, path, nil, result, scoped)
 }
 
-func (c *Client) doPost(ctx context.Context, path string, body any, result any) error {
-	return c.doRequest(ctx, http.MethodPost, path, body, result)
+func (c *Client) doPost(ctx context.Context, path string, body any, result any, scoped bool) error {
+	return c.doRequest(ctx, http.MethodPost, path, body, result, scoped)
 }
 
-func (c *Client) doPut(ctx context.Context, path string, body any, result any) error {
-	return c.doRequest(ctx, http.MethodPut, path, body, result)
+func (c *Client) doPut(ctx context.Context, path string, body any, result any, scoped bool) error {
+	return c.doRequest(ctx, http.MethodPut, path, body, result, scoped)
 }
 
-func (c *Client) doRequest(ctx context.Context, method, path string, body any, result any) error {
+func (c *Client) doRequest(ctx context.Context, method, path string, body any, result any, scoped bool) error {
 	var bodyReader io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -304,6 +331,11 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, r
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if scoped {
+		if err := c.attachWorkspaceHeaders(req); err != nil {
+			return err
+		}
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

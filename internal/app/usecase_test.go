@@ -18,14 +18,18 @@ func intptr(i int) *int    { return &i }
 func setupTestServer(handler http.HandlerFunc) (*UseCase, *httptest.Server) {
 	ts := httptest.NewServer(handler)
 	client := multica.NewClient(ts.URL, "test-token")
-	uc := NewUseCase(client, "ws-123", false)
+	client.SetWorkspaceScope("ws-123", "")
+	uc := NewUseCase(client, false)
 	return uc, ts
 }
 
 func TestListProjects(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/workspaces/ws-123/projects" {
+		if r.URL.Path != "/api/projects" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("unexpected auth header: %s", r.Header.Get("Authorization"))
@@ -54,22 +58,21 @@ func TestListProjects(t *testing.T) {
 
 func TestListProjectsWithQuery(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/workspaces/ws-123/projects" {
-			json.NewEncoder(w).Encode(map[string]any{
-				"projects": []map[string]any{
-					{"id": "p1", "title": "Backend Search Match"},
-				},
-				"total": 1,
-			})
-			return
+		if r.URL.Path != "/api/projects/search" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		q := r.URL.Query().Get("q")
 		if q != "backend" {
 			t.Errorf("expected query 'backend', got %q", q)
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"projects": []map[string]any{},
-			"total":    0,
+			"projects": []map[string]any{
+				{"id": "p1", "title": "Backend Search Match"},
+			},
+			"total": 1,
 		})
 	})
 	defer ts.Close()
@@ -78,22 +81,27 @@ func TestListProjectsWithQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListProjects with query: %v", err)
 	}
-	_ = projects
+	if len(projects) != 1 {
+		t.Errorf("expected 1 project, got %d", len(projects))
+	}
+	if projects[0].Title != "Backend Search Match" {
+		t.Errorf("unexpected project title: %q", projects[0].Title)
+	}
 }
 
 func TestGetTask(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/workspaces/ws-123/issues/task-1":
+		case "/api/issues/task-1":
 			json.NewEncoder(w).Encode(map[string]any{
 				"id": "task-1", "title": "Test Task", "status": "todo",
 				"identifier": "MUL-1", "workspace_id": "ws-123",
 			})
-		case "/api/workspaces/ws-123/issues/task-1/comments":
+		case "/api/issues/task-1/comments":
 			json.NewEncoder(w).Encode([]map[string]any{
 				{"id": "c1", "content": "first comment"},
 			})
-		case "/api/workspaces/ws-123/issues/task-1/children":
+		case "/api/issues/task-1/children":
 			json.NewEncoder(w).Encode(map[string]any{
 				"issues": []map[string]any{
 					{"id": "child-1", "title": "Subtask 1"},
@@ -123,8 +131,11 @@ func TestCreateTask(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/workspaces/ws-123/issues" {
+		if r.URL.Path != "/api/issues" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		var body map[string]any
 		json.NewDecoder(r.Body).Decode(&body)
@@ -196,7 +207,7 @@ func TestReadOnlyMode(t *testing.T) {
 	})
 	defer ts.Close()
 
-	readOnlyUC := NewUseCase(uc.client, "ws-123", true)
+	readOnlyUC := NewUseCase(uc.client, true)
 
 	_, err := readOnlyUC.CreateTask(context.Background(), domain.CreateTaskInput{
 		Title: "test", Description: "test",
@@ -208,6 +219,12 @@ func TestReadOnlyMode(t *testing.T) {
 
 func TestSearchTasks(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/issues/search" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
+		}
 		if r.URL.Query().Get("q") != "refactor" {
 			t.Errorf("expected q=refactor, got %q", r.URL.Query().Get("q"))
 		}
@@ -233,8 +250,11 @@ func TestSearchTasks(t *testing.T) {
 
 func TestListAgents(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/workspaces/ws-123/agents" {
+		if r.URL.Path != "/api/agents" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		json.NewEncoder(w).Encode([]map[string]any{
 			{"id": "a1", "name": "Claude", "status": "active"},
@@ -280,8 +300,11 @@ func TestAddComment(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/workspaces/ws-123/issues/t1/comments" {
+		if r.URL.Path != "/api/issues/t1/comments" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws-123" {
+			t.Errorf("expected X-Workspace-ID ws-123, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]any{

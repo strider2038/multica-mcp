@@ -41,8 +41,11 @@ func TestClient_ListWorkspaces(t *testing.T) {
 
 func TestClient_ListProjects(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/workspaces/ws1/projects" {
+		if r.URL.Path != "/api/projects" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws1" {
+			t.Errorf("expected X-Workspace-ID ws1, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		json.NewEncoder(w).Encode(map[string]any{
 			"projects": []map[string]any{
@@ -54,7 +57,8 @@ func TestClient_ListProjects(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-token")
-	projects, err := client.ListProjects(context.Background(), "ws1", "")
+	client.SetWorkspaceScope("ws1", "")
+	projects, err := client.ListProjects(context.Background())
 	if err != nil {
 		t.Fatalf("ListProjects: %v", err)
 	}
@@ -67,6 +71,12 @@ func TestClient_CreateTask(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/issues" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws1" {
+			t.Errorf("expected X-Workspace-ID ws1, got %q", r.Header.Get("X-Workspace-ID"))
 		}
 		var body map[string]any
 		json.NewDecoder(r.Body).Decode(&body)
@@ -84,7 +94,8 @@ func TestClient_CreateTask(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-token")
-	task, err := client.CreateTask(context.Background(), "ws1", domain.CreateTaskInput{
+	client.SetWorkspaceScope("ws1", "")
+	task, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
 		Title:       "Test",
 		Description: "desc",
 	})
@@ -106,7 +117,8 @@ func TestClient_ErrorHandling(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-token")
-	_, err := client.GetProject(context.Background(), "ws1", "nonexistent")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.GetProject(context.Background(), "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
@@ -116,6 +128,34 @@ func TestClient_ErrorHandling(t *testing.T) {
 	}
 	if apiErr.StatusCode != 404 {
 		t.Errorf("expected status 404, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestClient_ListProjects_WithSlug(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Workspace-Slug") != "acme" {
+			t.Errorf("expected X-Workspace-Slug acme, got %q", r.Header.Get("X-Workspace-Slug"))
+		}
+		if r.Header.Get("X-Workspace-ID") != "" {
+			t.Errorf("did not expect X-Workspace-ID when using slug, got %q", r.Header.Get("X-Workspace-ID"))
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"projects": []map[string]any{
+				{"id": "p1", "title": "API"},
+			},
+			"total":    1,
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token")
+	client.SetWorkspaceScope("", "acme")
+	projects, err := client.ListProjects(context.Background())
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(projects) != 1 || projects[0].Title != "API" {
+		t.Fatalf("unexpected projects: %+v", projects)
 	}
 }
 
