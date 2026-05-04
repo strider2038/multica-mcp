@@ -191,6 +191,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.ProjectID != "" {
 		body["project_id"] = input.ProjectID
 	}
+	if input.ParentIssueID != nil && *input.ParentIssueID != "" {
+		body["parent_issue_id"] = *input.ParentIssueID
+	}
 
 	var resp domain.Task
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {

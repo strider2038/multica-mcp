@@ -7,28 +7,25 @@ import (
 	"log/slog"
 	"strconv"
 
-	mcplib "github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/strider2038/multica-mcp/internal/app"
 	"github.com/strider2038/multica-mcp/internal/domain"
 )
 
 type Server struct {
-	mcpServer *server.MCPServer
+	mcpServer *mcp.Server
 	useCase   *app.UseCase
 }
 
 func NewServer(useCase *app.UseCase, readOnly bool) *Server {
 	s := &Server{
 		useCase: useCase,
+		mcpServer: mcp.NewServer(&mcp.Implementation{
+			Name:    "multica-mcp",
+			Version: "0.1.0",
+		}, nil),
 	}
-
-	s.mcpServer = server.NewMCPServer(
-		"multica-mcp",
-		"0.1.0",
-		server.WithToolCapabilities(true),
-	)
 
 	s.registerTools(readOnly)
 	return s
@@ -53,81 +50,59 @@ func (s *Server) registerTools(readOnly bool) {
 	}
 }
 
-func (s *Server) addTool(tool mcplib.Tool, handler func(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error)) {
+func (s *Server) addTool(tool *mcp.Tool, handler mcp.ToolHandler) {
 	s.mcpServer.AddTool(tool, handler)
 }
 
-func (s *Server) GetMCPServer() *server.MCPServer {
+func (s *Server) GetMCPServer() *mcp.Server {
 	return s.mcpServer
 }
 
-func listProjectsTool() mcplib.Tool {
-	return mcplib.NewTool("multica_list_projects",
-		mcplib.WithDescription("List projects in the Multica workspace. Optionally filter by name query."),
-		mcplib.WithString("query",
-			mcplib.Description("Optional search query to filter projects by name"),
-		),
-	)
+func listProjectsTool() *mcp.Tool {
+	return newTool("multica_list_projects", "List projects in the Multica workspace. Optionally filter by name query.", properties(
+		stringProp("query", "Optional search query to filter projects by name"),
+	), nil)
 }
 
-func (s *Server) handleListProjects(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	input := domain.ListProjectsInput{
-		Query: argsGetString(req, "query"),
-	}
+func (s *Server) handleListProjects(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.ListProjectsInput{Query: argsGetString(req, "query")}
 
 	projects, err := s.useCase.ListProjects(ctx, input)
 	if err != nil {
-		return errorResult("list projects", err)
+		return errorResult("list projects", err), nil
 	}
 
-	return jsonResult(projects)
+	return jsonResult(projects), nil
 }
 
-func getProjectTool() mcplib.Tool {
-	return mcplib.NewTool("multica_get_project",
-		mcplib.WithDescription("Get detailed information about a specific project by ID."),
-		mcplib.WithString("project_id",
-			mcplib.Description("Project ID"),
-			mcplib.Required(),
-		),
-	)
+func getProjectTool() *mcp.Tool {
+	return newTool("multica_get_project", "Get detailed information about a specific project by ID.", properties(
+		stringProp("project_id", "Project ID"),
+	), []string{"project_id"})
 }
 
-func (s *Server) handleGetProject(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	input := domain.GetProjectInput{
-		ProjectID: argsGetString(req, "project_id"),
-	}
+func (s *Server) handleGetProject(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.GetProjectInput{ProjectID: argsGetString(req, "project_id")}
 
 	project, err := s.useCase.GetProject(ctx, input)
 	if err != nil {
-		return errorResult("get project", err)
+		return errorResult("get project", err), nil
 	}
 
-	return jsonResult(project)
+	return jsonResult(project), nil
 }
 
-func listTasksTool() mcplib.Tool {
-	return mcplib.NewTool("multica_list_tasks",
-		mcplib.WithDescription("List tasks in a project with optional filters for status, assignee, and text query."),
-		mcplib.WithString("project_id",
-			mcplib.Description("Project ID to filter tasks"),
-		),
-		mcplib.WithString("status",
-			mcplib.Description("Filter by status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
-		),
-		mcplib.WithString("assignee",
-			mcplib.Description("Filter by assignee ID"),
-		),
-		mcplib.WithString("query",
-			mcplib.Description("Optional text search query"),
-		),
-		mcplib.WithNumber("limit",
-			mcplib.Description("Maximum number of tasks to return (default 100)"),
-		),
-	)
+func listTasksTool() *mcp.Tool {
+	return newTool("multica_list_tasks", "List tasks in a project with optional filters for status, assignee, and text query.", properties(
+		stringProp("project_id", "Project ID to filter tasks"),
+		stringProp("status", "Filter by status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
+		stringProp("assignee", "Filter by assignee ID"),
+		stringProp("query", "Optional text search query"),
+		numberProp("limit", "Maximum number of tasks to return (default 100)"),
+	), nil)
 }
 
-func (s *Server) handleListTasks(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.ListTasksInput{
 		ProjectID: argsGetString(req, "project_id"),
 		Status:    argsGetStringPtr(req, "status"),
@@ -138,63 +113,41 @@ func (s *Server) handleListTasks(ctx context.Context, req mcplib.CallToolRequest
 
 	tasks, err := s.useCase.ListTasks(ctx, input)
 	if err != nil {
-		return errorResult("list tasks", err)
+		return errorResult("list tasks", err), nil
 	}
 
-	return jsonResult(tasks)
+	return jsonResult(tasks), nil
 }
 
-func getTaskTool() mcplib.Tool {
-	return mcplib.NewTool("multica_get_task",
-		mcplib.WithDescription("Get a task with its description, status, assignee, comments, and subtasks."),
-		mcplib.WithString("task_id",
-			mcplib.Description("Task ID or identifier (e.g. MUL-123)"),
-			mcplib.Required(),
-		),
-	)
+func getTaskTool() *mcp.Tool {
+	return newTool("multica_get_task", "Get a task with its description, status, assignee, comments, and subtasks.", properties(
+		stringProp("task_id", "Task ID or identifier (e.g. MUL-123)"),
+	), []string{"task_id"})
 }
 
-func (s *Server) handleGetTask(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	input := domain.GetTaskInput{
-		TaskID: argsGetString(req, "task_id"),
-	}
+func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.GetTaskInput{TaskID: argsGetString(req, "task_id")}
 
 	task, err := s.useCase.GetTask(ctx, input)
 	if err != nil {
-		return errorResult("get task", err)
+		return errorResult("get task", err), nil
 	}
 
-	return jsonResult(task)
+	return jsonResult(task), nil
 }
 
-func createTaskTool() mcplib.Tool {
-	return mcplib.NewTool("multica_create_task",
-		mcplib.WithDescription("Create a new task in a project."),
-		mcplib.WithString("project_id",
-			mcplib.Description("Project ID to create the task in"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("title",
-			mcplib.Description("Task title"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("description",
-			mcplib.Description("Task description (Markdown supported)"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("priority",
-			mcplib.Description("Task priority: none, urgent, high, medium, low"),
-		),
-		mcplib.WithString("assignee",
-			mcplib.Description("Assignee ID (member or agent)"),
-		),
-		mcplib.WithBoolean("dry_run",
-			mcplib.Description("If true, validate without creating"),
-		),
-	)
+func createTaskTool() *mcp.Tool {
+	return newTool("multica_create_task", "Create a new task in a project.", properties(
+		stringProp("project_id", "Project ID to create the task in"),
+		stringProp("title", "Task title"),
+		stringProp("description", "Task description (Markdown supported)"),
+		stringProp("priority", "Task priority: none, urgent, high, medium, low"),
+		stringProp("assignee", "Assignee ID (member or agent)"),
+		booleanProp("dry_run", "If true, validate without creating"),
+	), []string{"project_id", "title", "description"})
 }
 
-func (s *Server) handleCreateTask(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.CreateTaskInput{
 		ProjectID:   argsGetString(req, "project_id"),
 		Title:       argsGetString(req, "title"),
@@ -206,37 +159,23 @@ func (s *Server) handleCreateTask(ctx context.Context, req mcplib.CallToolReques
 
 	result, err := s.useCase.CreateTask(ctx, input)
 	if err != nil {
-		return errorResult("create task", err)
+		return errorResult("create task", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func createSubtaskTool() mcplib.Tool {
-	return mcplib.NewTool("multica_create_subtask",
-		mcplib.WithDescription("Create a subtask under an existing task."),
-		mcplib.WithString("parent_task_id",
-			mcplib.Description("Parent task ID"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("title",
-			mcplib.Description("Subtask title"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("description",
-			mcplib.Description("Subtask description"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("assignee",
-			mcplib.Description("Assignee ID"),
-		),
-		mcplib.WithBoolean("dry_run",
-			mcplib.Description("If true, validate without creating"),
-		),
-	)
+func createSubtaskTool() *mcp.Tool {
+	return newTool("multica_create_subtask", "Create a subtask under an existing task.", properties(
+		stringProp("parent_task_id", "Parent task ID"),
+		stringProp("title", "Subtask title"),
+		stringProp("description", "Subtask description"),
+		stringProp("assignee", "Assignee ID"),
+		booleanProp("dry_run", "If true, validate without creating"),
+	), []string{"parent_task_id", "title", "description"})
 }
 
-func (s *Server) handleCreateSubtask(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.CreateSubtaskInput{
 		ParentTaskID: argsGetString(req, "parent_task_id"),
 		Title:        argsGetString(req, "title"),
@@ -247,74 +186,51 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req mcplib.CallToolReq
 
 	result, err := s.useCase.CreateSubtask(ctx, input)
 	if err != nil {
-		return errorResult("create subtask", err)
+		return errorResult("create subtask", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func updateTaskTool() mcplib.Tool {
-	return mcplib.NewTool("multica_update_task",
-		mcplib.WithDescription("Update a task's title, description, status, priority, or assignee."),
-		mcplib.WithString("task_id",
-			mcplib.Description("Task ID to update"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("title",
-			mcplib.Description("New title"),
-		),
-		mcplib.WithString("description",
-			mcplib.Description("New description"),
-		),
-		mcplib.WithString("status",
-			mcplib.Description("New status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
-		),
-		mcplib.WithString("priority",
-			mcplib.Description("New priority: none, urgent, high, medium, low"),
-		),
-		mcplib.WithString("assignee",
-			mcplib.Description("New assignee ID"),
-		),
-		mcplib.WithBoolean("dry_run",
-			mcplib.Description("If true, validate without updating"),
-		),
-	)
+func updateTaskTool() *mcp.Tool {
+	return newTool("multica_update_task", "Update a task's title, description, status, priority, or assignee.", properties(
+		stringProp("task_id", "Task ID to update"),
+		stringProp("title", "New title"),
+		stringProp("description", "New description"),
+		stringProp("status", "New status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
+		stringProp("priority", "New priority: none, urgent, high, medium, low"),
+		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
+		booleanProp("dry_run", "If true, validate without updating"),
+	), []string{"task_id"})
 }
 
-func (s *Server) handleUpdateTask(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.UpdateTaskInput{
 		TaskID:      argsGetString(req, "task_id"),
 		Title:       argsGetStringPtr(req, "title"),
 		Description: argsGetStringPtr(req, "description"),
 		Status:      argsGetStringPtr(req, "status"),
 		Priority:    argsGetStringPtr(req, "priority"),
-		Assignee:    argsGetStringPtr(req, "assignee"),
+		Assignee:    argsGetOptionalStringPtr(req, "assignee"),
 		DryRun:      argsGetBool(req, "dry_run"),
 	}
 
 	result, err := s.useCase.UpdateTask(ctx, input)
 	if err != nil {
-		return errorResult("update task", err)
+		return errorResult("update task", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func addCommentTool() mcplib.Tool {
-	return mcplib.NewTool("multica_add_comment",
-		mcplib.WithDescription("Add a comment to a task."),
-		mcplib.WithString("task_id",
-			mcplib.Description("Task ID"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("comment",
-			mcplib.Description("Comment text (Markdown supported)"),
-			mcplib.Required(),
-		),
-	)
+func addCommentTool() *mcp.Tool {
+	return newTool("multica_add_comment", "Add a comment to a task.", properties(
+		stringProp("task_id", "Task ID"),
+		stringProp("comment", "Comment text (Markdown supported)"),
+	), []string{"task_id", "comment"})
 }
 
-func (s *Server) handleAddComment(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleAddComment(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.AddCommentInput{
 		TaskID:  argsGetString(req, "task_id"),
 		Comment: argsGetString(req, "comment"),
@@ -322,49 +238,37 @@ func (s *Server) handleAddComment(ctx context.Context, req mcplib.CallToolReques
 
 	result, err := s.useCase.AddComment(ctx, input)
 	if err != nil {
-		return errorResult("add comment", err)
+		return errorResult("add comment", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func listAgentsTool() mcplib.Tool {
-	return mcplib.NewTool("multica_list_agents",
-		mcplib.WithDescription("List available agents in the workspace."),
-		mcplib.WithString("project_id",
-			mcplib.Description("Optional project ID to filter agents"),
-		),
-	)
+func listAgentsTool() *mcp.Tool {
+	return newTool("multica_list_agents", "List available agents in the workspace.", properties(
+		stringProp("project_id", "Optional project ID to filter agents"),
+	), nil)
 }
 
-func (s *Server) handleListAgents(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	input := domain.ListAgentsInput{
-		ProjectID: argsGetStringPtr(req, "project_id"),
-	}
+func (s *Server) handleListAgents(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.ListAgentsInput{ProjectID: argsGetStringPtr(req, "project_id")}
 
 	agents, err := s.useCase.ListAgents(ctx, input)
 	if err != nil {
-		return errorResult("list agents", err)
+		return errorResult("list agents", err), nil
 	}
 
-	return jsonResult(agents)
+	return jsonResult(agents), nil
 }
 
-func assignTaskTool() mcplib.Tool {
-	return mcplib.NewTool("multica_assign_task",
-		mcplib.WithDescription("Assign a task to a person or agent."),
-		mcplib.WithString("task_id",
-			mcplib.Description("Task ID"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("assignee_id",
-			mcplib.Description("ID of the member or agent to assign"),
-			mcplib.Required(),
-		),
-	)
+func assignTaskTool() *mcp.Tool {
+	return newTool("multica_assign_task", "Assign a task to a person or agent.", properties(
+		stringProp("task_id", "Task ID"),
+		stringProp("assignee_id", "ID of the member or agent to assign"),
+	), []string{"task_id", "assignee_id"})
 }
 
-func (s *Server) handleAssignTask(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleAssignTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.AssignTaskInput{
 		TaskID:     argsGetString(req, "task_id"),
 		AssigneeID: argsGetString(req, "assignee_id"),
@@ -372,32 +276,22 @@ func (s *Server) handleAssignTask(ctx context.Context, req mcplib.CallToolReques
 
 	result, err := s.useCase.AssignTask(ctx, input)
 	if err != nil {
-		return errorResult("assign task", err)
+		return errorResult("assign task", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func searchTasksTool() mcplib.Tool {
-	return mcplib.NewTool("multica_search_tasks",
-		mcplib.WithDescription("Search tasks by text across titles, descriptions, and comments."),
-		mcplib.WithString("query",
-			mcplib.Description("Search query text"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("project_id",
-			mcplib.Description("Optional project ID to scope the search"),
-		),
-		mcplib.WithString("status",
-			mcplib.Description("Optional status filter"),
-		),
-		mcplib.WithNumber("limit",
-			mcplib.Description("Maximum results to return"),
-		),
-	)
+func searchTasksTool() *mcp.Tool {
+	return newTool("multica_search_tasks", "Search tasks by text across titles, descriptions, and comments.", properties(
+		stringProp("query", "Search query text"),
+		stringProp("project_id", "Optional project ID to scope the search"),
+		stringProp("status", "Optional status filter"),
+		numberProp("limit", "Maximum results to return"),
+	), []string{"query"})
 }
 
-func (s *Server) handleSearchTasks(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handleSearchTasks(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.SearchTasksInput{
 		Query:     argsGetString(req, "query"),
 		ProjectID: argsGetStringPtr(req, "project_id"),
@@ -407,30 +301,21 @@ func (s *Server) handleSearchTasks(ctx context.Context, req mcplib.CallToolReque
 
 	tasks, err := s.useCase.SearchTasks(ctx, input)
 	if err != nil {
-		return errorResult("search tasks", err)
+		return errorResult("search tasks", err), nil
 	}
 
-	return jsonResult(tasks)
+	return jsonResult(tasks), nil
 }
 
-func planTaskBreakdownTool() mcplib.Tool {
-	return mcplib.NewTool("multica_plan_task_breakdown",
-		mcplib.WithDescription("Generate a structured plan of subtasks based on a task description. Does NOT create any tasks."),
-		mcplib.WithString("title",
-			mcplib.Description("Task title"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("description",
-			mcplib.Description("Task description"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("project_context",
-			mcplib.Description("Optional project context for more relevant breakdown"),
-		),
-	)
+func planTaskBreakdownTool() *mcp.Tool {
+	return newTool("multica_plan_task_breakdown", "Generate a structured plan of subtasks based on a task description. Does NOT create any tasks.", properties(
+		stringProp("title", "Task title"),
+		stringProp("description", "Task description"),
+		stringProp("project_context", "Optional project context for more relevant breakdown"),
+	), []string{"title", "description"})
 }
 
-func (s *Server) handlePlanTaskBreakdown(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+func (s *Server) handlePlanTaskBreakdown(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.PlanTaskBreakdownInput{
 		Title:          argsGetString(req, "title"),
 		Description:    argsGetString(req, "description"),
@@ -439,58 +324,46 @@ func (s *Server) handlePlanTaskBreakdown(ctx context.Context, req mcplib.CallToo
 
 	result, err := s.useCase.PlanTaskBreakdown(ctx, input)
 	if err != nil {
-		return errorResult("plan task breakdown", err)
+		return errorResult("plan task breakdown", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
-func createTaskWithSubtasksTool() mcplib.Tool {
-	return mcplib.NewTool("multica_create_task_with_subtasks",
-		mcplib.WithDescription("Create a parent task with subtasks in a single operation."),
-		mcplib.WithString("project_id",
-			mcplib.Description("Project ID"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("title",
-			mcplib.Description("Parent task title"),
-			mcplib.Required(),
-		),
-		mcplib.WithString("description",
-			mcplib.Description("Parent task description"),
-			mcplib.Required(),
-		),
-		mcplib.WithArray("subtasks",
-			mcplib.Description("Array of subtask objects with title and description"),
-			mcplib.Required(),
-			mcplib.Items(map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"title":       map[string]any{"type": "string", "description": "Subtask title"},
-					"description": map[string]any{"type": "string", "description": "Subtask description"},
-				},
-				"required": []any{"title", "description"},
-			}),
-		),
-		mcplib.WithString("assignee",
-			mcplib.Description("Assignee ID for parent and subtasks"),
-		),
-		mcplib.WithBoolean("dry_run",
-			mcplib.Description("If true, validate without creating"),
-		),
+func createTaskWithSubtasksTool() *mcp.Tool {
+	subtaskSchema := map[string]any{
+		"type": "array",
+		"items": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title":       map[string]any{"type": "string", "description": "Subtask title"},
+				"description": map[string]any{"type": "string", "description": "Subtask description"},
+			},
+			"required": []string{"title", "description"},
+		},
+	}
+
+	props := properties(
+		stringProp("project_id", "Project ID"),
+		stringProp("title", "Parent task title"),
+		stringProp("description", "Parent task description"),
+		property{Name: "subtasks", Schema: subtaskSchema},
+		stringProp("assignee", "Assignee ID for parent and subtasks"),
+		booleanProp("dry_run", "If true, validate without creating"),
 	)
+	return newTool("multica_create_task_with_subtasks", "Create a parent task with subtasks in a single operation.", props, []string{"project_id", "title", "description", "subtasks"})
 }
 
-func (s *Server) handleCreateTaskWithSubtasks(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	args := req.GetArguments()
+func (s *Server) handleCreateTaskWithSubtasks(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := requestArgs(req)
 	subtasksRaw, ok := args["subtasks"]
 	if !ok {
-		return errorResult("create task with subtasks", fmt.Errorf("subtasks is required"))
+		return errorResult("create task with subtasks", fmt.Errorf("subtasks is required")), nil
 	}
 
 	subtaskDefs, err := parseSubtaskDefs(subtasksRaw)
 	if err != nil {
-		return errorResult("create task with subtasks", err)
+		return errorResult("create task with subtasks", err), nil
 	}
 
 	input := domain.CreateTaskWithSubtasksInput{
@@ -504,10 +377,10 @@ func (s *Server) handleCreateTaskWithSubtasks(ctx context.Context, req mcplib.Ca
 
 	result, err := s.useCase.CreateTaskWithSubtasks(ctx, input)
 	if err != nil {
-		return errorResult("create task with subtasks", err)
+		return errorResult("create task with subtasks", err), nil
 	}
 
-	return jsonResult(result)
+	return jsonResult(result), nil
 }
 
 func parseSubtaskDefs(raw any) ([]domain.SubtaskDef, error) {
@@ -522,8 +395,63 @@ func parseSubtaskDefs(raw any) ([]domain.SubtaskDef, error) {
 	return defs, nil
 }
 
-func argsGetString(req mcplib.CallToolRequest, key string) string {
-	args := req.GetArguments()
+type property struct {
+	Name   string
+	Schema map[string]any
+}
+
+func newTool(name, description string, props map[string]any, required []string) *mcp.Tool {
+	schema := map[string]any{
+		"type":                 "object",
+		"properties":           props,
+		"additionalProperties": false,
+	}
+	if len(required) > 0 {
+		schema["required"] = required
+	}
+
+	return &mcp.Tool{
+		Name:        name,
+		Description: description,
+		InputSchema: schema,
+	}
+}
+
+func properties(props ...property) map[string]any {
+	result := make(map[string]any, len(props))
+	for _, prop := range props {
+		result[prop.Name] = prop.Schema
+	}
+	return result
+}
+
+func stringProp(name, description string) property {
+	return property{Name: name, Schema: map[string]any{"type": "string", "description": description}}
+}
+
+func numberProp(name, description string) property {
+	return property{Name: name, Schema: map[string]any{"type": "number", "description": description}}
+}
+
+func booleanProp(name, description string) property {
+	return property{Name: name, Schema: map[string]any{"type": "boolean", "description": description}}
+}
+
+func requestArgs(req *mcp.CallToolRequest) map[string]any {
+	if req == nil || req.Params == nil || len(req.Params.Arguments) == 0 {
+		return nil
+	}
+
+	var args map[string]any
+	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		slog.Warn("failed to decode tool arguments", "error", err)
+		return nil
+	}
+	return args
+}
+
+func argsGetString(req *mcp.CallToolRequest, key string) string {
+	args := requestArgs(req)
 	if args == nil {
 		return ""
 	}
@@ -535,8 +463,16 @@ func argsGetString(req mcplib.CallToolRequest, key string) string {
 	return s
 }
 
-func argsGetStringPtr(req mcplib.CallToolRequest, key string) *string {
-	args := req.GetArguments()
+func argsGetStringPtr(req *mcp.CallToolRequest, key string) *string {
+	s := argsGetOptionalStringPtr(req, key)
+	if s == nil || *s == "" {
+		return nil
+	}
+	return s
+}
+
+func argsGetOptionalStringPtr(req *mcp.CallToolRequest, key string) *string {
+	args := requestArgs(req)
 	if args == nil {
 		return nil
 	}
@@ -545,14 +481,14 @@ func argsGetStringPtr(req mcplib.CallToolRequest, key string) *string {
 		return nil
 	}
 	s, ok := v.(string)
-	if !ok || s == "" {
+	if !ok {
 		return nil
 	}
 	return &s
 }
 
-func argsGetIntPtr(req mcplib.CallToolRequest, key string) *int {
-	args := req.GetArguments()
+func argsGetIntPtr(req *mcp.CallToolRequest, key string) *int {
+	args := requestArgs(req)
 	if args == nil {
 		return nil
 	}
@@ -583,8 +519,8 @@ func argsGetIntPtr(req mcplib.CallToolRequest, key string) *int {
 	return nil
 }
 
-func argsGetBool(req mcplib.CallToolRequest, key string) bool {
-	args := req.GetArguments()
+func argsGetBool(req *mcp.CallToolRequest, key string) bool {
+	args := requestArgs(req)
 	if args == nil {
 		return false
 	}
@@ -599,16 +535,22 @@ func argsGetBool(req mcplib.CallToolRequest, key string) bool {
 	return b
 }
 
-func jsonResult(data any) (*mcplib.CallToolResult, error) {
+func jsonResult(data any) *mcp.CallToolResult {
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		slog.Error("failed to marshal result", "error", err)
-		return mcplib.NewToolResultError("internal error: failed to format result"), nil
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{&mcp.TextContent{Text: "internal error: failed to format result"}},
+			IsError: true,
+		}
 	}
-	return mcplib.NewToolResultText(string(b)), nil
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: string(b)}}}
 }
 
-func errorResult(op string, err error) (*mcplib.CallToolResult, error) {
+func errorResult(op string, err error) *mcp.CallToolResult {
 	slog.Warn("tool error", "operation", op, "error", err)
-	return mcplib.NewToolResultError(fmt.Sprintf("%s: %v", op, err)), nil
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("%s: %v", op, err)}},
+		IsError: true,
+	}
 }

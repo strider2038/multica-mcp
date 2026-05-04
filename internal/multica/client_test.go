@@ -107,6 +107,42 @@ func TestClient_CreateTask(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithParentIssue(t *testing.T) {
+	parentID := "parent-1"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/issues" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["parent_issue_id"] != parentID {
+			t.Errorf("expected parent_issue_id %q, got %v", parentID, body["parent_issue_id"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id":         "subtask-1",
+			"title":      "Subtask",
+			"status":     "todo",
+			"identifier": "MUL-2",
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		ParentIssueID: &parentID,
+		Title:         "Subtask",
+		Description:   "desc",
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
 func TestClient_ErrorHandling(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -143,7 +179,7 @@ func TestClient_ListProjects_WithSlug(t *testing.T) {
 			"projects": []map[string]any{
 				{"id": "p1", "title": "API"},
 			},
-			"total":    1,
+			"total": 1,
 		})
 	}))
 	defer ts.Close()
