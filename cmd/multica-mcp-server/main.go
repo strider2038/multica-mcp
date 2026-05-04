@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/strider2038/multica-mcp/internal/app"
 	"github.com/strider2038/multica-mcp/internal/config"
@@ -90,16 +90,17 @@ func resolveWorkspace(client *multica.Client) string {
 	return ""
 }
 
-func runStdio(mcpServer *server.MCPServer) {
-	stdioServer := server.NewStdioServer(mcpServer)
-	if err := stdioServer.Listen(context.Background(), os.Stdin, os.Stdout); err != nil {
+func runStdio(mcpServer *mcp.Server) {
+	if err := mcpServer.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		slog.Error("stdio server error", "error", err)
 		os.Exit(1)
 	}
 }
 
-func runHTTP(mcpServer *server.MCPServer, port int, apiKey string, ctx context.Context) {
-	streamable := server.NewStreamableHTTPServer(mcpServer)
+func runHTTP(mcpServer *mcp.Server, port int, apiKey string, ctx context.Context) {
+	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+		return mcpServer
+	}, nil)
 
 	handler := http.Handler(streamable)
 	if apiKey != "" {
@@ -125,7 +126,7 @@ func runHTTP(mcpServer *server.MCPServer, port int, apiKey string, ctx context.C
 
 	<-ctx.Done()
 	slog.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	httpServer.Shutdown(shutdownCtx)
 }

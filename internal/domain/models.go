@@ -162,6 +162,7 @@ type GetTaskInput struct {
 
 type CreateTaskInput struct {
 	ProjectID      string
+	ParentIssueID  *string
 	Title          string
 	Description    string
 	Priority       *string

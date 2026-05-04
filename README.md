@@ -13,6 +13,34 @@ MCP server for [Multica](https://multica.ai) — the open-source managed agents 
 
 ## Quick Start
 
+### Install a release binary
+
+Download the archive for your OS and CPU from the [GitHub releases](https://github.com/strider2038/multica-mcp/releases) page:
+
+- Linux x86_64: `multica-mcp-server-linux-amd64.tar.gz`
+- Linux ARM64: `multica-mcp-server-linux-arm64.tar.gz`
+- macOS Intel: `multica-mcp-server-darwin-amd64.tar.gz`
+- macOS Apple Silicon: `multica-mcp-server-darwin-arm64.tar.gz`
+- Windows x86_64: `multica-mcp-server-windows-amd64.zip`
+- Windows ARM64: `multica-mcp-server-windows-arm64.zip`
+
+Linux/macOS example:
+
+```bash
+tar -xzf multica-mcp-server-linux-amd64.tar.gz
+chmod +x multica-mcp-server-linux-amd64
+sudo mv multica-mcp-server-linux-amd64 /usr/local/bin/multica-mcp-server
+```
+
+Windows PowerShell example:
+
+```powershell
+Expand-Archive .\multica-mcp-server-windows-amd64.zip .
+Move-Item .\multica-mcp-server-windows-amd64.exe $env:USERPROFILE\bin\multica-mcp-server.exe
+```
+
+Use the installed path in your MCP client configuration, for example `/usr/local/bin/multica-mcp-server` on Linux/macOS.
+
 ### Build
 
 ```bash

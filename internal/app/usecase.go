@@ -115,9 +115,10 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 	}
 
 	createInput := domain.CreateTaskInput{
-		Title:       input.Title,
-		Description: input.Description,
-		Assignee:    input.Assignee,
+		ParentIssueID: &task.ID,
+		Title:         input.Title,
+		Description:   input.Description,
+		Assignee:      input.Assignee,
 	}
 	if task.ProjectID != nil && *task.ProjectID != "" {
 		createInput.ProjectID = *task.ProjectID
@@ -260,25 +261,17 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 
 	for _, sub := range input.Subtasks {
 		subInput := domain.CreateTaskInput{
-			ProjectID:   input.ProjectID,
-			Title:       sub.Title,
-			Description: sub.Description,
-			Assignee:    input.Assignee,
+			ProjectID:     input.ProjectID,
+			ParentIssueID: &parent.ID,
+			Title:         sub.Title,
+			Description:   sub.Description,
+			Assignee:      input.Assignee,
 		}
 
 		subTask, err := u.client.CreateTask(ctx, subInput)
 		if err != nil {
 			slog.Warn("failed to create subtask", "title", sub.Title, "error", err)
 			continue
-		}
-
-		updateInput := domain.UpdateTaskInput{
-			TaskID: subTask.ID,
-		}
-
-		_, updateErr := u.client.UpdateTask(ctx, subTask.ID, updateInput)
-		if updateErr != nil {
-			slog.Warn("failed to set parent for subtask", "subtask_id", subTask.ID, "parent_id", parent.ID, "error", updateErr)
 		}
 
 		result.Subtasks = append(result.Subtasks, domain.CreateTaskResult{
