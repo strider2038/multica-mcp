@@ -1,18 +1,30 @@
-# Руководство пользователя Multica MCP Server
+# Руководство пользователя Multica MCP
 
 Это руководство описывает сценарии использования MCP-сервера Multica с локальными агентами.
 
+Сервер ориентирован на **Multica REST API v0.3.16**.
+
 ## Установка
+
+### Установка через Go
+
+Требуется Go 1.25+ и каталог `GOBIN` в `PATH` (часто `~/go/bin`):
+
+```bash
+go install github.com/strider2038/multica-mcp@latest
+```
+
+Бинарный файл: **`multica-mcp`** (обычно `$(go env GOPATH)/bin/multica-mcp`).
 
 ### Сборка из исходников
 
 ```bash
-git clone https://github.com/multica-ai/multica-mcp.git
+git clone https://github.com/strider2038/multica-mcp.git
 cd multica-mcp
 make build
 ```
 
-Бинарный файл появится в `bin/multica-mcp-server`.
+Бинарный файл появится в `bin/multica-mcp`.
 
 ### Настройка окружения
 
@@ -35,7 +47,7 @@ export MULTICA_WORKSPACE_ID=ws_abc123  # необязательно, если у
 {
   "mcpServers": {
     "multica": {
-      "command": "/путь/к/multica-mcp-server",
+      "command": "/путь/к/multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_ваш_токен",
@@ -54,7 +66,7 @@ export MULTICA_WORKSPACE_ID=ws_abc123  # необязательно, если у
 {
   "mcp": {
     "multica": {
-      "command": "multica-mcp-server",
+      "command": "multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_ваш_токен"
@@ -197,7 +209,7 @@ export MULTICA_WORKSPACE_ID=ws_abc123  # необязательно, если у
 ### HTTP
 
 ```bash
-MCP_TRANSPORT=http MCP_HTTP_PORT=9090 ./bin/multica-mcp-server
+MCP_TRANSPORT=http MCP_HTTP_PORT=9090 ./bin/multica-mcp
 ```
 
 Сервер будет доступен на `http://localhost:9090/mcp`.
@@ -210,7 +222,7 @@ MCP_TRANSPORT=http MCP_HTTP_PORT=9090 ./bin/multica-mcp-server
 MCP_TRANSPORT=http \
 MCP_HTTP_PORT=8080 \
 MCP_API_KEY=ваш-секретный-ключ \
-./bin/multica-mcp-server
+./bin/multica-mcp
 ```
 
 Клиенты должны передавать заголовок `Authorization: Bearer ваш-секретный-ключ` с каждым запросом. Без `MCP_API_KEY` аутентификация отключена — подходит только для локального использования через stdio.

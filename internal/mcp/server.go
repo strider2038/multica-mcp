@@ -11,6 +11,7 @@ import (
 
 	"github.com/strider2038/multica-mcp/internal/app"
 	"github.com/strider2038/multica-mcp/internal/domain"
+	"github.com/strider2038/multica-mcp/internal/version"
 )
 
 type Server struct {
@@ -23,7 +24,7 @@ func NewServer(useCase *app.UseCase, readOnly bool) *Server {
 		useCase: useCase,
 		mcpServer: mcp.NewServer(&mcp.Implementation{
 			Name:    "multica-mcp",
-			Version: "0.1.0",
+			Version: version.Version,
 		}, nil),
 	}
 
@@ -142,7 +143,8 @@ func createTaskTool() *mcp.Tool {
 		stringProp("title", "Task title"),
 		stringProp("description", "Task description (Markdown supported)"),
 		stringProp("priority", "Task priority: none, urgent, high, medium, low"),
-		stringProp("assignee", "Assignee ID (member or agent)"),
+		stringProp("assignee", "Assignee ID (member, agent, or squad)"),
+		stringProp("assignee_type", "Assignee type: member, agent, or squad (inferred from agents list when omitted)"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	), []string{"project_id", "title", "description"})
 }
@@ -153,8 +155,9 @@ func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest)
 		Title:       argsGetString(req, "title"),
 		Description: argsGetString(req, "description"),
 		Priority:    argsGetStringPtr(req, "priority"),
-		Assignee:    argsGetStringPtr(req, "assignee"),
-		DryRun:      argsGetBool(req, "dry_run"),
+		Assignee:     argsGetStringPtr(req, "assignee"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
 	result, err := s.useCase.CreateTask(ctx, input)
@@ -171,6 +174,7 @@ func createSubtaskTool() *mcp.Tool {
 		stringProp("title", "Subtask title"),
 		stringProp("description", "Subtask description"),
 		stringProp("assignee", "Assignee ID"),
+		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	), []string{"parent_task_id", "title", "description"})
 }
@@ -181,6 +185,7 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolReque
 		Title:        argsGetString(req, "title"),
 		Description:  argsGetString(req, "description"),
 		Assignee:     argsGetStringPtr(req, "assignee"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
@@ -200,6 +205,7 @@ func updateTaskTool() *mcp.Tool {
 		stringProp("status", "New status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
 		stringProp("priority", "New priority: none, urgent, high, medium, low"),
 		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
+		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
 		booleanProp("dry_run", "If true, validate without updating"),
 	), []string{"task_id"})
 }
@@ -211,8 +217,9 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		Description: argsGetStringPtr(req, "description"),
 		Status:      argsGetStringPtr(req, "status"),
 		Priority:    argsGetStringPtr(req, "priority"),
-		Assignee:    argsGetOptionalStringPtr(req, "assignee"),
-		DryRun:      argsGetBool(req, "dry_run"),
+		Assignee:     argsGetOptionalStringPtr(req, "assignee"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
 	result, err := s.useCase.UpdateTask(ctx, input)
@@ -264,14 +271,16 @@ func (s *Server) handleListAgents(ctx context.Context, req *mcp.CallToolRequest)
 func assignTaskTool() *mcp.Tool {
 	return newTool("multica_assign_task", "Assign a task to a person or agent.", properties(
 		stringProp("task_id", "Task ID"),
-		stringProp("assignee_id", "ID of the member or agent to assign"),
+		stringProp("assignee_id", "ID of the member, agent, or squad to assign"),
+		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
 	), []string{"task_id", "assignee_id"})
 }
 
 func (s *Server) handleAssignTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.AssignTaskInput{
-		TaskID:     argsGetString(req, "task_id"),
-		AssigneeID: argsGetString(req, "assignee_id"),
+		TaskID:       argsGetString(req, "task_id"),
+		AssigneeID:   argsGetString(req, "assignee_id"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 	}
 
 	result, err := s.useCase.AssignTask(ctx, input)
@@ -349,6 +358,7 @@ func createTaskWithSubtasksTool() *mcp.Tool {
 		stringProp("description", "Parent task description"),
 		property{Name: "subtasks", Schema: subtaskSchema},
 		stringProp("assignee", "Assignee ID for parent and subtasks"),
+		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	)
 	return newTool("multica_create_task_with_subtasks", "Create a parent task with subtasks in a single operation.", props, []string{"project_id", "title", "description", "subtasks"})
@@ -371,8 +381,9 @@ func (s *Server) handleCreateTaskWithSubtasks(ctx context.Context, req *mcp.Call
 		Title:       argsGetString(req, "title"),
 		Description: argsGetString(req, "description"),
 		Subtasks:    subtaskDefs,
-		Assignee:    argsGetStringPtr(req, "assignee"),
-		DryRun:      argsGetBool(req, "dry_run"),
+		Assignee:     argsGetStringPtr(req, "assignee"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
 	result, err := s.useCase.CreateTaskWithSubtasks(ctx, input)

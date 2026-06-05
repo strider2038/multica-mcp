@@ -83,6 +83,14 @@ func (u *UseCase) CreateTask(ctx context.Context, input domain.CreateTaskInput) 
 		}, nil
 	}
 
+	if input.Assignee != nil && *input.Assignee != "" {
+		assigneeType, err := u.resolveAssigneeType(ctx, *input.Assignee, input.AssigneeType)
+		if err != nil {
+			return nil, err
+		}
+		input.AssigneeType = assigneeType
+	}
+
 	task, err := u.client.CreateTask(ctx, input)
 	if err != nil {
 		return nil, err
@@ -119,9 +127,18 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 		Title:         input.Title,
 		Description:   input.Description,
 		Assignee:      input.Assignee,
+		AssigneeType:  input.AssigneeType,
 	}
 	if task.ProjectID != nil && *task.ProjectID != "" {
 		createInput.ProjectID = *task.ProjectID
+	}
+
+	if createInput.Assignee != nil && *createInput.Assignee != "" {
+		assigneeType, err := u.resolveAssigneeType(ctx, *createInput.Assignee, createInput.AssigneeType)
+		if err != nil {
+			return nil, err
+		}
+		createInput.AssigneeType = assigneeType
 	}
 
 	result, err := u.client.CreateTask(ctx, createInput)
@@ -154,6 +171,14 @@ func (u *UseCase) UpdateTask(ctx context.Context, input domain.UpdateTaskInput) 
 		}, nil
 	}
 
+	if input.Assignee != nil && *input.Assignee != "" {
+		assigneeType, err := u.resolveAssigneeType(ctx, *input.Assignee, input.AssigneeType)
+		if err != nil {
+			return nil, err
+		}
+		input.AssigneeType = assigneeType
+	}
+
 	task, err := u.client.UpdateTask(ctx, input.TaskID, input)
 	if err != nil {
 		return nil, err
@@ -183,9 +208,15 @@ func (u *UseCase) AssignTask(ctx context.Context, input domain.AssignTaskInput) 
 		return nil, err
 	}
 
+	assigneeType, err := u.resolveAssigneeType(ctx, input.AssigneeID, input.AssigneeType)
+	if err != nil {
+		return nil, err
+	}
+
 	updateInput := domain.UpdateTaskInput{
-		TaskID:   input.TaskID,
-		Assignee: &input.AssigneeID,
+		TaskID:       input.TaskID,
+		Assignee:     &input.AssigneeID,
+		AssigneeType: assigneeType,
 	}
 
 	task, err := u.client.UpdateTask(ctx, input.TaskID, updateInput)
@@ -238,10 +269,19 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 	}
 
 	parentInput := domain.CreateTaskInput{
-		ProjectID:   input.ProjectID,
-		Title:       input.Title,
-		Description: input.Description,
-		Assignee:    input.Assignee,
+		ProjectID:    input.ProjectID,
+		Title:        input.Title,
+		Description:  input.Description,
+		Assignee:     input.Assignee,
+		AssigneeType: input.AssigneeType,
+	}
+
+	if parentInput.Assignee != nil && *parentInput.Assignee != "" {
+		assigneeType, err := u.resolveAssigneeType(ctx, *parentInput.Assignee, parentInput.AssigneeType)
+		if err != nil {
+			return nil, err
+		}
+		parentInput.AssigneeType = assigneeType
 	}
 
 	parent, err := u.client.CreateTask(ctx, parentInput)
@@ -266,6 +306,7 @@ func (u *UseCase) CreateTaskWithSubtasks(ctx context.Context, input domain.Creat
 			Title:         sub.Title,
 			Description:   sub.Description,
 			Assignee:      input.Assignee,
+			AssigneeType:  parentInput.AssigneeType,
 		}
 
 		subTask, err := u.client.CreateTask(ctx, subInput)

@@ -26,7 +26,7 @@ func TestClient_ListWorkspaces(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "mul_test123")
+	client := NewClient(ts.URL, "mul_test123", "test")
 	workspaces, err := client.ListWorkspaces(context.Background())
 	if err != nil {
 		t.Fatalf("ListWorkspaces: %v", err)
@@ -56,7 +56,7 @@ func TestClient_ListProjects(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-token")
+	client := NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("ws1", "")
 	projects, err := client.ListProjects(context.Background())
 	if err != nil {
@@ -93,7 +93,7 @@ func TestClient_CreateTask(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-token")
+	client := NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("ws1", "")
 	task, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
 		Title:       "Test",
@@ -131,7 +131,7 @@ func TestClient_CreateTask_WithParentIssue(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-token")
+	client := NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("ws1", "")
 	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
 		ParentIssueID: &parentID,
@@ -152,7 +152,7 @@ func TestClient_ErrorHandling(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-token")
+	client := NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("ws1", "")
 	_, err := client.GetProject(context.Background(), "nonexistent")
 	if err == nil {
@@ -184,7 +184,7 @@ func TestClient_ListProjects_WithSlug(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-token")
+	client := NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("", "acme")
 	projects, err := client.ListProjects(context.Background())
 	if err != nil {
@@ -202,7 +202,7 @@ func TestClient_Unauthorized(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "bad-token")
+	client := NewClient(ts.URL, "bad-token", "test")
 	_, err := client.ListWorkspaces(context.Background())
 	if err == nil {
 		t.Fatal("expected error for 401")

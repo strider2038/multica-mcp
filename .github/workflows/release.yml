@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read VERSION
+        id: ver
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$VERSION" =~ ^0\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must match 0.x.y (got: $VERSION)" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if tag already exists
+        id: skip
+        run: |
+          if git rev-parse "${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists — no release."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.skip.outputs.skip != 'true'
+        with:
+          go-version: "1.25"
+
+      - name: Run tests
+        if: steps.skip.outputs.skip != 'true'
+        run: go test ./... -count=1
+
+      - name: Build release binaries
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          mkdir -p dist
+          for spec in "linux amd64 tar.gz" "linux arm64 tar.gz" "darwin amd64 tar.gz" "darwin arm64 tar.gz" "windows amd64 zip" "windows arm64 zip"; do
+            set -- $spec
+            GOOS=$1 GOARCH=$2 ext=$3
+            name="multica-mcp-${GOOS}-${GOARCH}"
+            binary="dist/${name}"
+            if [ "$GOOS" = "windows" ]; then binary="${binary}.exe"; fi
+            CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -trimpath \
+              -ldflags="-s -w -X github.com/strider2038/multica-mcp/internal/version.Version=${VERSION}" \
+              -o "$binary" .
+            if [ "$ext" = "zip" ]; then
+              (cd dist && zip "${name}.zip" "$(basename "$binary")")
+            else
+              tar -C dist -czf "dist/${name}.tar.gz" "$(basename "$binary")"
+            fi
+          done
+
+      - name: Create GitHub release
+        if: steps.skip.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.zip

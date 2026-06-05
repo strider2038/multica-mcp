@@ -17,7 +17,7 @@ func intptr(i int) *int    { return &i }
 
 func setupTestServer(handler http.HandlerFunc) (*UseCase, *httptest.Server) {
 	ts := httptest.NewServer(handler)
-	client := multica.NewClient(ts.URL, "test-token")
+	client := multica.NewClient(ts.URL, "test-token", "test")
 	client.SetWorkspaceScope("ws-123", "")
 	uc := NewUseCase(client, false)
 	return uc, ts

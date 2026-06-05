@@ -87,10 +87,12 @@ type Task struct {
 	AssigneeID    *string   `json:"assignee_id"`
 	CreatorType   string    `json:"creator_type"`
 	CreatorID     string    `json:"creator_id"`
-	ParentIssueID *string   `json:"parent_issue_id"`
-	ProjectID     *string   `json:"project_id"`
-	Position      float64   `json:"position"`
-	DueDate       *string   `json:"due_date"`
+	ParentIssueID *string          `json:"parent_issue_id"`
+	ProjectID     *string          `json:"project_id"`
+	Position      float64          `json:"position"`
+	StartDate     *string          `json:"start_date"`
+	DueDate       *string          `json:"due_date"`
+	Metadata      map[string]any   `json:"metadata,omitempty"`
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
 	Reactions     []any     `json:"reactions,omitempty"`
@@ -160,6 +162,23 @@ type GetTaskInput struct {
 	TaskID string
 }
 
+type AssigneeType string
+
+const (
+	AssigneeTypeMember AssigneeType = "member"
+	AssigneeTypeAgent  AssigneeType = "agent"
+	AssigneeTypeSquad  AssigneeType = "squad"
+)
+
+func (t AssigneeType) IsValid() bool {
+	switch t {
+	case AssigneeTypeMember, AssigneeTypeAgent, AssigneeTypeSquad:
+		return true
+	default:
+		return false
+	}
+}
+
 type CreateTaskInput struct {
 	ProjectID      string
 	ParentIssueID  *string
@@ -168,6 +187,7 @@ type CreateTaskInput struct {
 	Priority       *string
 	Labels         []string
 	Assignee       *string
+	AssigneeType   *string
 	IdempotencyKey *string
 	DryRun         bool
 }
@@ -177,18 +197,20 @@ type CreateSubtaskInput struct {
 	Title        string
 	Description  string
 	Assignee     *string
+	AssigneeType *string
 	DryRun       bool
 }
 
 type UpdateTaskInput struct {
-	TaskID      string
-	Title       *string
-	Description *string
-	Status      *string
-	Priority    *string
-	Labels      []string
-	Assignee    *string
-	DryRun      bool
+	TaskID       string
+	Title        *string
+	Description  *string
+	Status       *string
+	Priority     *string
+	Labels       []string
+	Assignee     *string
+	AssigneeType *string
+	DryRun       bool
 }
 
 type AddCommentInput struct {
@@ -201,8 +223,9 @@ type ListAgentsInput struct {
 }
 
 type AssignTaskInput struct {
-	TaskID     string
-	AssigneeID string
+	TaskID       string
+	AssigneeID   string
+	AssigneeType *string
 }
 
 type SearchTasksInput struct {
@@ -235,6 +258,7 @@ type CreateTaskWithSubtasksInput struct {
 	Description    string
 	Subtasks       []SubtaskDef
 	Assignee       *string
+	AssigneeType   *string
 	IdempotencyKey *string
 	DryRun         bool
 }
