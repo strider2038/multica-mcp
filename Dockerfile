@@ -3,9 +3,12 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /bin/multica-mcp-server ./cmd/multica-mcp-server
+ARG VERSION=0.0.0
+RUN CGO_ENABLED=0 go build \
+  -ldflags="-s -w -X github.com/strider2038/multica-mcp/internal/version.Version=${VERSION}" \
+  -o /bin/multica-mcp .
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /bin/multica-mcp-server /usr/local/bin/multica-mcp-server
-ENTRYPOINT ["multica-mcp-server"]
+COPY --from=builder /bin/multica-mcp /usr/local/bin/multica-mcp
+ENTRYPOINT ["multica-mcp"]

@@ -19,6 +19,7 @@ import (
 	mcpserver "github.com/strider2038/multica-mcp/internal/mcp"
 	"github.com/strider2038/multica-mcp/internal/middleware"
 	"github.com/strider2038/multica-mcp/internal/multica"
+	"github.com/strider2038/multica-mcp/internal/version"
 )
 
 func main() {
@@ -29,12 +30,14 @@ func main() {
 	}
 
 	logging.Setup(cfg.LogLevel)
-	slog.Info("starting multica-mcp-server",
+	slog.Info("starting multica-mcp",
+		"version", version.Version,
+		"multica_api", version.MulticaAPI,
 		"transport", cfg.MCPTransport,
 		"read_only", cfg.ReadOnly,
 	)
 
-	client := multica.NewClient(cfg.MulticaBaseURL, cfg.MulticaToken)
+	client := multica.NewClient(cfg.MulticaBaseURL, cfg.MulticaToken, version.Version)
 
 	slug := strings.TrimSpace(cfg.MulticaWorkspaceSlug)
 	wsID := strings.TrimSpace(cfg.MulticaWorkspaceID)

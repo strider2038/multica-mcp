@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/strider2038/multica-mcp/internal/domain"
@@ -18,15 +19,17 @@ import (
 type Client struct {
 	baseURL       string
 	token         string
+	clientVersion string
 	httpClient    *http.Client
 	workspaceID   string
 	workspaceSlug string
 }
 
-func NewClient(baseURL, token string) *Client {
+func NewClient(baseURL, token, clientVersion string) *Client {
 	return &Client{
-		baseURL: baseURL,
-		token:   token,
+		baseURL:       baseURL,
+		token:         token,
+		clientVersion: strings.TrimSpace(clientVersion),
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -187,6 +190,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	}
 	if input.Assignee != nil && *input.Assignee != "" {
 		body["assignee_id"] = *input.Assignee
+		if input.AssigneeType != nil && *input.AssigneeType != "" {
+			body["assignee_type"] = *input.AssigneeType
+		}
 	}
 	if input.ProjectID != "" {
 		body["project_id"] = input.ProjectID
@@ -224,6 +230,9 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 			body["assignee_type"] = nil
 		} else {
 			body["assignee_id"] = *input.Assignee
+			if input.AssigneeType != nil && *input.AssigneeType != "" {
+				body["assignee_type"] = *input.AssigneeType
+			}
 		}
 	}
 
@@ -334,6 +343,10 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, r
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Client-Platform", "mcp")
+	if c.clientVersion != "" {
+		req.Header.Set("X-Client-Version", c.clientVersion)
+	}
 	if scoped {
 		if err := c.attachWorkspaceHeaders(req); err != nil {
 			return err
@@ -355,7 +368,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, r
 		slog.Debug("api error response", "method", method, "path", path, "status", resp.StatusCode, "body", truncate(string(respBody), 500))
 		return &apiError{
 			StatusCode: resp.StatusCode,
-			Message:    truncate(string(respBody), 200),
+			Message:    parseAPIErrorMessage(respBody),
 		}
 	}
 
@@ -366,6 +379,16 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, r
 	}
 
 	return nil
+}
+
+func parseAPIErrorMessage(body []byte) string {
+	var payload struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(body, &payload); err == nil && payload.Error != "" {
+		return payload.Error
+	}
+	return truncate(string(body), 200)
 }
 
 func truncate(s string, maxLen int) string {

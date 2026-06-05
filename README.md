@@ -1,6 +1,8 @@
-# multica-mcp-server
+# multica-mcp
 
 MCP server for [Multica](https://multica.ai) — the open-source managed agents platform. Allows local coding agents (Cursor, Claude Code, OpenCode, Codex, etc.) to interact with Multica projects, tasks, comments, and agents via the Model Context Protocol.
+
+Targets **Multica REST API v0.3.16**.
 
 ## Features
 
@@ -13,35 +15,45 @@ MCP server for [Multica](https://multica.ai) — the open-source managed agents 
 
 ## Quick Start
 
+### Install with Go
+
+Requires Go 1.25+ and a `GOBIN` on your `PATH` (often `~/go/bin`):
+
+```bash
+go install github.com/strider2038/multica-mcp@latest
+```
+
+The binary is installed as **`multica-mcp`**. Use `$(go env GOPATH)/bin/multica-mcp` or ensure `GOBIN` is on your `PATH`.
+
 ### Install a release binary
 
 Download the archive for your OS and CPU from the [GitHub releases](https://github.com/strider2038/multica-mcp/releases) page:
 
-- Linux x86_64: `multica-mcp-server-linux-amd64.tar.gz`
-- Linux ARM64: `multica-mcp-server-linux-arm64.tar.gz`
-- macOS Intel: `multica-mcp-server-darwin-amd64.tar.gz`
-- macOS Apple Silicon: `multica-mcp-server-darwin-arm64.tar.gz`
-- Windows x86_64: `multica-mcp-server-windows-amd64.zip`
-- Windows ARM64: `multica-mcp-server-windows-arm64.zip`
+- Linux x86_64: `multica-mcp-linux-amd64.tar.gz`
+- Linux ARM64: `multica-mcp-linux-arm64.tar.gz`
+- macOS Intel: `multica-mcp-darwin-amd64.tar.gz`
+- macOS Apple Silicon: `multica-mcp-darwin-arm64.tar.gz`
+- Windows x86_64: `multica-mcp-windows-amd64.zip`
+- Windows ARM64: `multica-mcp-windows-arm64.zip`
 
 Linux/macOS example:
 
 ```bash
-tar -xzf multica-mcp-server-linux-amd64.tar.gz
-chmod +x multica-mcp-server-linux-amd64
-sudo mv multica-mcp-server-linux-amd64 /usr/local/bin/multica-mcp-server
+tar -xzf multica-mcp-linux-amd64.tar.gz
+chmod +x multica-mcp-linux-amd64
+sudo mv multica-mcp-linux-amd64 /usr/local/bin/multica-mcp
 ```
 
 Windows PowerShell example:
 
 ```powershell
-Expand-Archive .\multica-mcp-server-windows-amd64.zip .
-Move-Item .\multica-mcp-server-windows-amd64.exe $env:USERPROFILE\bin\multica-mcp-server.exe
+Expand-Archive .\multica-mcp-windows-amd64.zip .
+Move-Item .\multica-mcp-windows-amd64.exe $env:USERPROFILE\bin\multica-mcp.exe
 ```
 
-Use the installed path in your MCP client configuration, for example `/usr/local/bin/multica-mcp-server` on Linux/macOS.
+Use the installed path in your MCP client configuration, for example `/usr/local/bin/multica-mcp` on Linux/macOS.
 
-### Build
+### Build from source
 
 ```bash
 make build
@@ -65,10 +77,10 @@ export LOG_LEVEL=info                          # debug, info, warn, error
 
 ```bash
 # stdio mode (for agent integration)
-./bin/multica-mcp-server
+./bin/multica-mcp
 
 # HTTP mode
-MCP_TRANSPORT=http ./bin/multica-mcp-server
+MCP_TRANSPORT=http ./bin/multica-mcp
 ```
 
 ## Configuration
@@ -152,7 +164,8 @@ Response:
   "title": "Add pagination to list endpoint",
   "description": "Implement cursor-based pagination for the issues list endpoint.",
   "priority": "medium",
-  "assignee": "agent-uuid-here"
+  "assignee": "agent-uuid-here",
+  "assignee_type": "agent"
 }
 ```
 
@@ -174,12 +187,12 @@ Response:
 
 ## Agent configuration
 
-Use the same environment variables as in the table above. Prefer an **absolute path** to `multica-mcp-server` in `command`.
+Use the same environment variables as in the table above. Prefer an **absolute path** to `multica-mcp` in `command` (from `go install` or `make build`).
 
 ### Cursor
 
 1. **Project MCP:** add `.cursor/mcp.json` in the project root, **or** user-level config (often `~/.cursor/mcp.json` on Linux/macOS — depends on Cursor version). You can also use **Cursor Settings → MCP** to register the server in the UI.
-2. Set `command` to the full path of your built binary (output of `make build` is `bin/multica-mcp-server` relative to this repo).
+2. Set `command` to the full path of your binary (`go install` → `$(go env GOPATH)/bin/multica-mcp`, or `make build` → `bin/multica-mcp` in this repo).
 3. Reload MCP servers after editing (Command Palette: “MCP: Restart” / restart Cursor).
 
 Example **`.cursor/mcp.json`** (workspace by **slug**; swap for `MULTICA_WORKSPACE_ID` if you prefer UUID):
@@ -188,7 +201,7 @@ Example **`.cursor/mcp.json`** (workspace by **slug**; swap for `MULTICA_WORKSPA
 {
   "mcpServers": {
     "multica": {
-      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp-server",
+      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_your_personal_access_token",
@@ -207,7 +220,7 @@ Example with **workspace UUID** instead of slug (do not set both unless you inte
 {
   "mcpServers": {
     "multica": {
-      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp-server",
+      "command": "/absolute/path/to/multica-mcp/bin/multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_your_personal_access_token",
@@ -227,7 +240,7 @@ Optional extras you can add under `env`: `MULTICA_READ_ONLY=true`, `LOG_LEVEL=de
 {
   "mcpServers": {
     "multica": {
-      "command": "/path/to/multica-mcp-server",
+      "command": "/path/to/multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_your_token",
@@ -246,7 +259,7 @@ You can replace `MULTICA_WORKSPACE_ID` with `MULTICA_WORKSPACE_SLUG` when you co
 {
   "mcp": {
     "multica": {
-      "command": "/path/to/multica-mcp-server",
+      "command": "/path/to/multica-mcp",
       "env": {
         "MULTICA_BASE_URL": "https://multica.ai",
         "MULTICA_TOKEN": "mul_your_token",
@@ -260,17 +273,20 @@ You can replace `MULTICA_WORKSPACE_ID` with `MULTICA_WORKSPACE_SLUG` when you co
 ## Architecture
 
 ```
-cmd/multica-mcp-server/    Entry point
+main.go                    Entry point (go install / go build)
 internal/
   config/                  Environment configuration
   domain/                  Domain models (Project, Task, Comment, Agent)
-  multica/                 HTTP client adapter for Multica API
+  multica/                 HTTP client adapter for Multica API v0.3.16
   app/                     Use case / business logic layer
   mcp/                     MCP tool handlers and registration
+  version/                 Server and API version constants
   logging/                 Structured logging (slog)
 ```
 
 The architecture isolates the MCP transport layer from business logic. The `internal/multica` package is the only one that knows about HTTP endpoints — if the Multica API changes, only that package needs updating.
+
+Agent contributors: see [AGENTS.md](AGENTS.md) for versioning, changelog, and release workflow.
 
 ## Self-Hosted (VPS)
 
@@ -280,7 +296,7 @@ Run as an HTTP server with API key authentication:
 MCP_TRANSPORT=http \
 MCP_HTTP_PORT=8080 \
 MCP_API_KEY=your-secret-key \
-./bin/multica-mcp-server
+./bin/multica-mcp
 ```
 
 Clients must send `Authorization: Bearer your-secret-key` with every request. Without `MCP_API_KEY`, authentication is disabled (suitable for local/stdio use only).
@@ -312,11 +328,15 @@ Configure the agent to use the HTTP endpoint:
 
 ## Development
 
+See [AGENTS.md](AGENTS.md) for versioning (`VERSION`, `CHANGELOG.md`) and release rules.
+
 ```bash
 make test     # run tests
 make lint     # run go vet
-make build    # build binary
+make build    # build bin/multica-mcp
 ```
+
+Pushes to `main` with a new `VERSION` trigger an automated GitHub release (`v0.x.y`).
 
 ## Token Setup
 

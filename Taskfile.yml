@@ -2,15 +2,15 @@ version: "3"
 
 tasks:
   build:
-    desc: Build the server binary
+    desc: Build the MCP binary
     cmds:
-      - go build -o bin/multica-mcp-server ./cmd/multica-mcp-server
+      - go build -o bin/multica-mcp .
 
   run:
     desc: Build and run the server
     deps: [build]
     cmds:
-      - ./bin/multica-mcp-server
+      - ./bin/multica-mcp
 
   test:
     desc: Run all tests
