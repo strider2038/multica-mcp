@@ -8,6 +8,10 @@ with major version `0` while the project is in active development.
 
 ## [Unreleased]
 
+### Changed
+
+- Multica REST API target bumped to **v0.3.17** (no REST contract changes for MCP tools since v0.3.16).
+
 ### Added
 
 - Multica REST API **v0.3.16** compatibility (`assignee_type`, client identity headers, structured API errors).
