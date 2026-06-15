@@ -253,16 +253,39 @@ func (c *Client) ListComments(ctx context.Context, issueID string) ([]domain.Com
 	return resp, nil
 }
 
-func (c *Client) CreateComment(ctx context.Context, issueID, content string) (*domain.Comment, error) {
-	path := "/api/issues/" + issueID + "/comments"
+func (c *Client) CreateComment(ctx context.Context, input domain.AddCommentInput) (*domain.Comment, error) {
+	path := "/api/issues/" + input.TaskID + "/comments"
 	body := map[string]any{
-		"content": content,
+		"content": input.Comment,
 	}
+	if input.ParentID != nil && *input.ParentID != "" {
+		body["parent_id"] = *input.ParentID
+	}
+	if len(input.SuppressAgentIDs) > 0 {
+		body["suppress_agent_ids"] = input.SuppressAgentIDs
+	}
+
 	var resp domain.Comment
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
-		return nil, fmt.Errorf("create comment on issue %s: %w", issueID, err)
+		return nil, fmt.Errorf("create comment on issue %s: %w", input.TaskID, err)
 	}
-	slog.Info("comment created", append([]any{"comment_id", resp.ID, "issue_id", issueID}, c.workspaceAttrs()...)...)
+	slog.Info("comment created", append([]any{"comment_id", resp.ID, "issue_id", input.TaskID}, c.workspaceAttrs()...)...)
+	return &resp, nil
+}
+
+func (c *Client) PreviewCommentTriggers(ctx context.Context, input domain.PreviewCommentTriggersInput) (*domain.CommentTriggerPreview, error) {
+	path := "/api/issues/" + input.TaskID + "/comments/trigger-preview"
+	body := map[string]any{
+		"content": input.Content,
+	}
+	if input.ParentID != nil && *input.ParentID != "" {
+		body["parent_id"] = *input.ParentID
+	}
+
+	var resp domain.CommentTriggerPreview
+	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
+		return nil, fmt.Errorf("preview comment triggers for issue %s: %w", input.TaskID, err)
+	}
 	return &resp, nil
 }
 
