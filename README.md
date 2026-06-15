@@ -116,7 +116,8 @@ Environment variables are read at process startup (`internal/config`). The Multi
 | `multica_get_task`            | Get task with comments and subtasks                        |
 | `multica_search_tasks`        | Full-text search across titles, descriptions, comments     |
 | `multica_list_agents`         | List workspace agents                                      |
-| `multica_plan_task_breakdown` | Generate a subtask plan (no tasks created)                 |
+| `multica_plan_task_breakdown`     | Generate a subtask plan (no tasks created)                 |
+| `multica_preview_comment_triggers`| Preview which agents a comment would trigger before posting |
 
 
 ### Write Operations (disabled in read-only mode)
@@ -127,7 +128,7 @@ Environment variables are read at process startup (`internal/config`). The Multi
 | `multica_create_task`               | Create a task                        |
 | `multica_create_subtask`            | Create a subtask under a parent task |
 | `multica_update_task`               | Update task fields                   |
-| `multica_add_comment`               | Add a comment to a task              |
+| `multica_add_comment`               | Add a comment (`/note` prefix skips agents; optional `suppress_agent_ids`) |
 | `multica_assign_task`               | Assign task to member or agent       |
 | `multica_create_task_with_subtasks` | Create parent + subtasks atomically  |
 
