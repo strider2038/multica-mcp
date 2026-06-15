@@ -40,6 +40,7 @@ func (s *Server) registerTools(readOnly bool) {
 	s.addTool(searchTasksTool(), s.handleSearchTasks)
 	s.addTool(listAgentsTool(), s.handleListAgents)
 	s.addTool(planTaskBreakdownTool(), s.handlePlanTaskBreakdown)
+	s.addTool(previewCommentTriggersTool(), s.handlePreviewCommentTriggers)
 
 	if !readOnly {
 		s.addTool(createTaskTool(), s.handleCreateTask)
@@ -231,21 +232,48 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 }
 
 func addCommentTool() *mcp.Tool {
-	return newTool("multica_add_comment", "Add a comment to a task.", properties(
+	return newTool("multica_add_comment", "Add a comment to a task. Prefix the comment with /note to leave a human-only note that does not trigger agents. Use suppress_agent_ids to skip specific agents while still triggering others.", properties(
 		stringProp("task_id", "Task ID"),
-		stringProp("comment", "Comment text (Markdown supported)"),
+		stringProp("comment", "Comment text (Markdown supported). Prefix with /note to skip all agent triggers."),
+		stringProp("parent_id", "Optional parent comment ID for thread replies"),
+		arrayProp("suppress_agent_ids", "Optional agent IDs to exclude from comment-triggered runs"),
 	), []string{"task_id", "comment"})
 }
 
 func (s *Server) handleAddComment(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.AddCommentInput{
-		TaskID:  argsGetString(req, "task_id"),
-		Comment: argsGetString(req, "comment"),
+		TaskID:           argsGetString(req, "task_id"),
+		Comment:          argsGetString(req, "comment"),
+		ParentID:         argsGetOptionalStringPtr(req, "parent_id"),
+		SuppressAgentIDs: argsGetStringSlice(req, "suppress_agent_ids"),
 	}
 
 	result, err := s.useCase.AddComment(ctx, input)
 	if err != nil {
 		return errorResult("add comment", err), nil
+	}
+
+	return jsonResult(result), nil
+}
+
+func previewCommentTriggersTool() *mcp.Tool {
+	return newTool("multica_preview_comment_triggers", "Preview which agents a comment would trigger before posting it.", properties(
+		stringProp("task_id", "Task ID"),
+		stringProp("content", "Comment text to evaluate"),
+		stringProp("parent_id", "Optional parent comment ID for thread replies"),
+	), []string{"task_id", "content"})
+}
+
+func (s *Server) handlePreviewCommentTriggers(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.PreviewCommentTriggersInput{
+		TaskID:   argsGetString(req, "task_id"),
+		Content:  argsGetString(req, "content"),
+		ParentID: argsGetOptionalStringPtr(req, "parent_id"),
+	}
+
+	result, err := s.useCase.PreviewCommentTriggers(ctx, input)
+	if err != nil {
+		return errorResult("preview comment triggers", err), nil
 	}
 
 	return jsonResult(result), nil
@@ -448,6 +476,14 @@ func booleanProp(name, description string) property {
 	return property{Name: name, Schema: map[string]any{"type": "boolean", "description": description}}
 }
 
+func arrayProp(name, description string) property {
+	return property{Name: name, Schema: map[string]any{
+		"type":        "array",
+		"items":       map[string]any{"type": "string"},
+		"description": description,
+	}}
+}
+
 func requestArgs(req *mcp.CallToolRequest) map[string]any {
 	if req == nil || req.Params == nil || len(req.Params.Arguments) == 0 {
 		return nil
@@ -544,6 +580,32 @@ func argsGetBool(req *mcp.CallToolRequest, key string) bool {
 		return false
 	}
 	return b
+}
+
+func argsGetStringSlice(req *mcp.CallToolRequest, key string) []string {
+	args := requestArgs(req)
+	if args == nil {
+		return nil
+	}
+	v, ok := args[key]
+	if !ok {
+		return nil
+	}
+	switch items := v.(type) {
+	case []string:
+		return items
+	case []any:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			s, ok := item.(string)
+			if ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 func jsonResult(data any) *mcp.CallToolResult {
