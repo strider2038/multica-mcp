@@ -196,7 +196,11 @@ func (u *UseCase) AddComment(ctx context.Context, input domain.AddCommentInput) 
 	if err := u.checkReadOnly(); err != nil {
 		return nil, err
 	}
-	return u.client.CreateComment(ctx, input.TaskID, input.Comment)
+	return u.client.CreateComment(ctx, input)
+}
+
+func (u *UseCase) PreviewCommentTriggers(ctx context.Context, input domain.PreviewCommentTriggersInput) (*domain.CommentTriggerPreview, error) {
+	return u.client.PreviewCommentTriggers(ctx, input)
 }
 
 func (u *UseCase) ListAgents(ctx context.Context, input domain.ListAgentsInput) ([]domain.Agent, error) {

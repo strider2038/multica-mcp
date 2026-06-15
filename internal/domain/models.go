@@ -102,15 +102,32 @@ type Task struct {
 }
 
 type Comment struct {
-	ID         string  `json:"id"`
-	IssueID    string  `json:"issue_id"`
-	AuthorType string  `json:"author_type"`
-	AuthorID   string  `json:"author_id"`
-	Content    string  `json:"content"`
-	Type       string  `json:"type"`
-	ParentID   *string `json:"parent_id"`
-	CreatedAt  string  `json:"created_at"`
-	UpdatedAt  string  `json:"updated_at"`
+	ID             string  `json:"id"`
+	IssueID        string  `json:"issue_id"`
+	AuthorType     string  `json:"author_type"`
+	AuthorID       string  `json:"author_id"`
+	Content        string  `json:"content"`
+	Type           string  `json:"type"`
+	ParentID       *string `json:"parent_id"`
+	ResolvedAt     *string `json:"resolved_at,omitempty"`
+	ResolvedByType *string `json:"resolved_by_type,omitempty"`
+	ResolvedByID   *string `json:"resolved_by_id,omitempty"`
+	ReplyCount     *int    `json:"reply_count,omitempty"`
+	LastActivityAt *string `json:"last_activity_at,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
+}
+
+type CommentTriggerAgent struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	Source    string  `json:"source"`
+	Reason    string  `json:"reason"`
+}
+
+type CommentTriggerPreview struct {
+	Agents []CommentTriggerAgent `json:"agents"`
 }
 
 type Agent struct {
@@ -214,8 +231,16 @@ type UpdateTaskInput struct {
 }
 
 type AddCommentInput struct {
-	TaskID  string
-	Comment string
+	TaskID           string
+	Comment          string
+	ParentID         *string
+	SuppressAgentIDs []string
+}
+
+type PreviewCommentTriggersInput struct {
+	TaskID   string
+	Content  string
+	ParentID *string
 }
 
 type ListAgentsInput struct {

@@ -10,12 +10,16 @@ with major version `0` while the project is in active development.
 
 ### Added
 
-- Multica REST API **v0.3.16** compatibility (`assignee_type`, client identity headers, structured API errors).
+- Multica REST API **v0.3.21** compatibility.
+- MCP tool `multica_preview_comment_triggers` — preview which agents a comment would wake before posting.
+- `multica_add_comment` supports `parent_id`, `suppress_agent_ids`, and documents the `/note` prefix for human-only comments.
 - `go install github.com/strider2038/multica-mcp@latest` — entry point moved to repository root.
 - `CHANGELOG.md`, `AGENTS.md`, and automated GitHub releases on push to `main`.
 
 ### Changed
 
+- Comment model includes thread resolution metadata (`resolved_at`, `reply_count`, `last_activity_at`).
+- Multica REST API target bumped from **v0.3.16** to **v0.3.21**.
 - Binary name: `multica-mcp` (was `multica-mcp-server`).
 - MCP server reports build version from `VERSION` / link-time `-ldflags`.
 

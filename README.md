@@ -2,11 +2,11 @@
 
 MCP server for [Multica](https://multica.ai) — the open-source managed agents platform. Allows local coding agents (Cursor, Claude Code, OpenCode, Codex, etc.) to interact with Multica projects, tasks, comments, and agents via the Model Context Protocol.
 
-Targets **Multica REST API v0.3.16**.
+Targets **Multica REST API v0.3.21**.
 
 ## Features
 
-- **13 MCP tools** for full Multica integration: list projects, create/update tasks, add comments, search, plan breakdowns, etc.
+- **14 MCP tools** for full Multica integration: list projects, create/update tasks, add comments, search, plan breakdowns, etc.
 - **stdio and HTTP transports** — connect via CLI pipe or HTTP endpoint
 - **Read-only mode** — safe deployment where write tools are disabled
 - **Dry-run support** — validate create/update operations without side effects
@@ -116,7 +116,8 @@ Environment variables are read at process startup (`internal/config`). The Multi
 | `multica_get_task`            | Get task with comments and subtasks                        |
 | `multica_search_tasks`        | Full-text search across titles, descriptions, comments     |
 | `multica_list_agents`         | List workspace agents                                      |
-| `multica_plan_task_breakdown` | Generate a subtask plan (no tasks created)                 |
+| `multica_plan_task_breakdown`     | Generate a subtask plan (no tasks created)                 |
+| `multica_preview_comment_triggers`| Preview which agents a comment would trigger before posting |
 
 
 ### Write Operations (disabled in read-only mode)
@@ -127,7 +128,7 @@ Environment variables are read at process startup (`internal/config`). The Multi
 | `multica_create_task`               | Create a task                        |
 | `multica_create_subtask`            | Create a subtask under a parent task |
 | `multica_update_task`               | Update task fields                   |
-| `multica_add_comment`               | Add a comment to a task              |
+| `multica_add_comment`               | Add a comment (`/note` prefix skips agents; optional `suppress_agent_ids`) |
 | `multica_assign_task`               | Assign task to member or agent       |
 | `multica_create_task_with_subtasks` | Create parent + subtasks atomically  |
 
@@ -277,7 +278,7 @@ main.go                    Entry point (go install / go build)
 internal/
   config/                  Environment configuration
   domain/                  Domain models (Project, Task, Comment, Agent)
-  multica/                 HTTP client adapter for Multica API v0.3.16
+  multica/                 HTTP client adapter for Multica API v0.3.21
   app/                     Use case / business logic layer
   mcp/                     MCP tool handlers and registration
   version/                 Server and API version constants

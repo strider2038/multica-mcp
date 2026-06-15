@@ -143,6 +143,82 @@ func TestClient_CreateTask_WithParentIssue(t *testing.T) {
 	}
 }
 
+func TestClient_CreateComment_WithSuppressAgentIDs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/issues/t1/comments" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		ids, ok := body["suppress_agent_ids"].([]any)
+		if !ok || len(ids) != 1 || ids[0] != "agent-1" {
+			t.Errorf("unexpected suppress_agent_ids: %v", body["suppress_agent_ids"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"id":      "c1",
+			"content": "hello",
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	comment, err := client.CreateComment(context.Background(), domain.AddCommentInput{
+		TaskID:           "t1",
+		Comment:          "hello",
+		SuppressAgentIDs: []string{"agent-1"},
+	})
+	if err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+	if comment.ID != "c1" {
+		t.Errorf("expected id c1, got %q", comment.ID)
+	}
+}
+
+func TestClient_PreviewCommentTriggers(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/issues/t1/comments/trigger-preview" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["content"] != "@agent please review" {
+			t.Errorf("unexpected content: %v", body["content"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"agents": []map[string]any{
+				{
+					"id":     "agent-1",
+					"name":   "Reviewer",
+					"source": "mention_agent",
+					"reason": "This agent was mentioned in the comment.",
+				},
+			},
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	preview, err := client.PreviewCommentTriggers(context.Background(), domain.PreviewCommentTriggersInput{
+		TaskID:  "t1",
+		Content: "@agent please review",
+	})
+	if err != nil {
+		t.Fatalf("PreviewCommentTriggers: %v", err)
+	}
+	if len(preview.Agents) != 1 || preview.Agents[0].ID != "agent-1" {
+		t.Fatalf("unexpected preview: %+v", preview)
+	}
+}
+
 func TestClient_ErrorHandling(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
