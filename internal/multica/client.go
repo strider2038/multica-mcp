@@ -200,6 +200,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.ParentIssueID != nil && *input.ParentIssueID != "" {
 		body["parent_issue_id"] = *input.ParentIssueID
 	}
+	if input.Stage != nil && *input.Stage >= 1 {
+		body["stage"] = *input.Stage
+	}
 
 	var resp domain.Task
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
@@ -235,6 +238,17 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 			}
 		}
 	}
+	if input.ClearStage {
+		body["stage"] = nil
+	} else if input.Stage != nil {
+		body["stage"] = *input.Stage
+	}
+	if input.SuppressRun {
+		body["suppress_run"] = true
+	}
+	if input.HandoffNote != "" {
+		body["handoff_note"] = input.HandoffNote
+	}
 
 	var resp domain.Task
 	if err := c.doPut(ctx, path, body, &resp, true); err != nil {
@@ -253,16 +267,65 @@ func (c *Client) ListComments(ctx context.Context, issueID string) ([]domain.Com
 	return resp, nil
 }
 
-func (c *Client) CreateComment(ctx context.Context, issueID, content string) (*domain.Comment, error) {
-	path := "/api/issues/" + issueID + "/comments"
+func (c *Client) CreateComment(ctx context.Context, input domain.AddCommentInput) (*domain.Comment, error) {
+	path := "/api/issues/" + input.TaskID + "/comments"
 	body := map[string]any{
-		"content": content,
+		"content": input.Comment,
 	}
+	if input.ParentID != nil && *input.ParentID != "" {
+		body["parent_id"] = *input.ParentID
+	}
+	if len(input.SuppressAgentIDs) > 0 {
+		body["suppress_agent_ids"] = input.SuppressAgentIDs
+	}
+
 	var resp domain.Comment
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
-		return nil, fmt.Errorf("create comment on issue %s: %w", issueID, err)
+		return nil, fmt.Errorf("create comment on issue %s: %w", input.TaskID, err)
 	}
-	slog.Info("comment created", append([]any{"comment_id", resp.ID, "issue_id", issueID}, c.workspaceAttrs()...)...)
+	slog.Info("comment created", append([]any{"comment_id", resp.ID, "issue_id", input.TaskID}, c.workspaceAttrs()...)...)
+	return &resp, nil
+}
+
+func (c *Client) PreviewCommentTriggers(ctx context.Context, input domain.PreviewCommentTriggersInput) (*domain.CommentTriggerPreview, error) {
+	path := "/api/issues/" + input.TaskID + "/comments/trigger-preview"
+	body := map[string]any{
+		"content": input.Content,
+	}
+	if input.ParentID != nil && *input.ParentID != "" {
+		body["parent_id"] = *input.ParentID
+	}
+
+	var resp domain.CommentTriggerPreview
+	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
+		return nil, fmt.Errorf("preview comment triggers for issue %s: %w", input.TaskID, err)
+	}
+	return &resp, nil
+}
+
+func (c *Client) PreviewIssueTriggers(ctx context.Context, input domain.PreviewIssueTriggersInput) (*domain.IssueTriggerPreview, error) {
+	path := "/api/issues/preview-trigger"
+	body := map[string]any{}
+	if len(input.IssueIDs) > 0 {
+		body["issue_ids"] = input.IssueIDs
+	}
+	if input.IsCreate {
+		body["is_create"] = true
+	}
+	if input.AssigneeType != nil && *input.AssigneeType != "" {
+		body["assignee_type"] = *input.AssigneeType
+	}
+	if input.AssigneeID != nil && *input.AssigneeID != "" {
+		body["assignee_id"] = *input.AssigneeID
+	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
+	}
+
+	var resp domain.IssueTriggerPreview
+	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
+		return nil, fmt.Errorf("preview issue triggers: %w", err)
+	}
 	return &resp, nil
 }
 

@@ -90,6 +90,7 @@ type Task struct {
 	ParentIssueID *string          `json:"parent_issue_id"`
 	ProjectID     *string          `json:"project_id"`
 	Position      float64          `json:"position"`
+	Stage         *int             `json:"stage"`
 	StartDate     *string          `json:"start_date"`
 	DueDate       *string          `json:"due_date"`
 	Metadata      map[string]any   `json:"metadata,omitempty"`
@@ -102,15 +103,45 @@ type Task struct {
 }
 
 type Comment struct {
-	ID         string  `json:"id"`
-	IssueID    string  `json:"issue_id"`
-	AuthorType string  `json:"author_type"`
-	AuthorID   string  `json:"author_id"`
-	Content    string  `json:"content"`
-	Type       string  `json:"type"`
-	ParentID   *string `json:"parent_id"`
-	CreatedAt  string  `json:"created_at"`
-	UpdatedAt  string  `json:"updated_at"`
+	ID             string  `json:"id"`
+	IssueID        string  `json:"issue_id"`
+	AuthorType     string  `json:"author_type"`
+	AuthorID       string  `json:"author_id"`
+	Content        string  `json:"content"`
+	Type           string  `json:"type"`
+	ParentID       *string `json:"parent_id"`
+	ResolvedAt     *string `json:"resolved_at,omitempty"`
+	ResolvedByType *string `json:"resolved_by_type,omitempty"`
+	ResolvedByID   *string `json:"resolved_by_id,omitempty"`
+	ReplyCount     *int    `json:"reply_count,omitempty"`
+	LastActivityAt *string `json:"last_activity_at,omitempty"`
+	SourceTaskID   *string `json:"source_task_id,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
+}
+
+type CommentTriggerAgent struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	Source    string  `json:"source"`
+	Reason    string  `json:"reason"`
+}
+
+type CommentTriggerPreview struct {
+	Agents []CommentTriggerAgent `json:"agents"`
+}
+
+type IssueTriggerPreviewItem struct {
+	IssueID          string `json:"issue_id"`
+	AgentID          string `json:"agent_id"`
+	Source           string `json:"source"`
+	HandoffSupported bool   `json:"handoff_supported"`
+}
+
+type IssueTriggerPreview struct {
+	Triggers   []IssueTriggerPreviewItem `json:"triggers"`
+	TotalCount int                       `json:"total_count"`
 }
 
 type Agent struct {
@@ -188,6 +219,7 @@ type CreateTaskInput struct {
 	Labels         []string
 	Assignee       *string
 	AssigneeType   *string
+	Stage          *int
 	IdempotencyKey *string
 	DryRun         bool
 }
@@ -198,6 +230,7 @@ type CreateSubtaskInput struct {
 	Description  string
 	Assignee     *string
 	AssigneeType *string
+	Stage        *int
 	DryRun       bool
 }
 
@@ -210,12 +243,32 @@ type UpdateTaskInput struct {
 	Labels       []string
 	Assignee     *string
 	AssigneeType *string
+	Stage        *int
+	ClearStage   bool
+	SuppressRun  bool
+	HandoffNote  string
 	DryRun       bool
 }
 
 type AddCommentInput struct {
-	TaskID  string
-	Comment string
+	TaskID           string
+	Comment          string
+	ParentID         *string
+	SuppressAgentIDs []string
+}
+
+type PreviewCommentTriggersInput struct {
+	TaskID   string
+	Content  string
+	ParentID *string
+}
+
+type PreviewIssueTriggersInput struct {
+	IssueIDs     []string
+	IsCreate     bool
+	AssigneeType *string
+	AssigneeID   *string
+	Status       *string
 }
 
 type ListAgentsInput struct {

@@ -40,6 +40,8 @@ func (s *Server) registerTools(readOnly bool) {
 	s.addTool(searchTasksTool(), s.handleSearchTasks)
 	s.addTool(listAgentsTool(), s.handleListAgents)
 	s.addTool(planTaskBreakdownTool(), s.handlePlanTaskBreakdown)
+	s.addTool(previewCommentTriggersTool(), s.handlePreviewCommentTriggers)
+	s.addTool(previewIssueTriggersTool(), s.handlePreviewIssueTriggers)
 
 	if !readOnly {
 		s.addTool(createTaskTool(), s.handleCreateTask)
@@ -145,18 +147,20 @@ func createTaskTool() *mcp.Tool {
 		stringProp("priority", "Task priority: none, urgent, high, medium, low"),
 		stringProp("assignee", "Assignee ID (member, agent, or squad)"),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad (inferred from agents list when omitted)"),
+		numberProp("stage", "Optional ordered stage (>= 1) for sub-issue barrier grouping under a parent"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	), []string{"project_id", "title", "description"})
 }
 
 func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.CreateTaskInput{
-		ProjectID:   argsGetString(req, "project_id"),
-		Title:       argsGetString(req, "title"),
-		Description: argsGetString(req, "description"),
-		Priority:    argsGetStringPtr(req, "priority"),
+		ProjectID:    argsGetString(req, "project_id"),
+		Title:        argsGetString(req, "title"),
+		Description:  argsGetString(req, "description"),
+		Priority:     argsGetStringPtr(req, "priority"),
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		Stage:        argsGetIntPtr(req, "stage"),
 		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
@@ -175,6 +179,7 @@ func createSubtaskTool() *mcp.Tool {
 		stringProp("description", "Subtask description"),
 		stringProp("assignee", "Assignee ID"),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
+		numberProp("stage", "Optional ordered stage (>= 1) for barrier grouping among sibling subtasks"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	), []string{"parent_task_id", "title", "description"})
 }
@@ -186,6 +191,7 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolReque
 		Description:  argsGetString(req, "description"),
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		Stage:        argsGetIntPtr(req, "stage"),
 		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
@@ -198,7 +204,7 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolReque
 }
 
 func updateTaskTool() *mcp.Tool {
-	return newTool("multica_update_task", "Update a task's title, description, status, priority, or assignee.", properties(
+	return newTool("multica_update_task", "Update a task's title, description, status, priority, assignee, or stage. Use suppress_run to apply assignee/status changes without starting an agent run, and handoff_note to inject context when a run starts.", properties(
 		stringProp("task_id", "Task ID to update"),
 		stringProp("title", "New title"),
 		stringProp("description", "New description"),
@@ -206,6 +212,10 @@ func updateTaskTool() *mcp.Tool {
 		stringProp("priority", "New priority: none, urgent, high, medium, low"),
 		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
+		numberProp("stage", "Ordered stage (>= 1) for sub-issue barrier grouping"),
+		booleanProp("clear_stage", "If true, remove the task from its stage (unstage)"),
+		booleanProp("suppress_run", "If true, apply changes without enqueueing an agent run"),
+		stringProp("handoff_note", "Optional handoff instruction injected when an agent run starts"),
 		booleanProp("dry_run", "If true, validate without updating"),
 	), []string{"task_id"})
 }
@@ -219,6 +229,10 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		Priority:    argsGetStringPtr(req, "priority"),
 		Assignee:     argsGetOptionalStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		Stage:        argsGetIntPtr(req, "stage"),
+		ClearStage:   argsGetBool(req, "clear_stage"),
+		SuppressRun:  argsGetBool(req, "suppress_run"),
+		HandoffNote:  argsGetString(req, "handoff_note"),
 		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
@@ -231,21 +245,75 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 }
 
 func addCommentTool() *mcp.Tool {
-	return newTool("multica_add_comment", "Add a comment to a task.", properties(
+	return newTool("multica_add_comment", "Add a comment to a task. Prefix the comment with /note to leave a human-only note that does not trigger agents. Use suppress_agent_ids to skip specific agents while still triggering others.", properties(
 		stringProp("task_id", "Task ID"),
-		stringProp("comment", "Comment text (Markdown supported)"),
+		stringProp("comment", "Comment text (Markdown supported). Prefix with /note to skip all agent triggers."),
+		stringProp("parent_id", "Optional parent comment ID for thread replies"),
+		arrayProp("suppress_agent_ids", "Optional agent IDs to exclude from comment-triggered runs"),
 	), []string{"task_id", "comment"})
 }
 
 func (s *Server) handleAddComment(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.AddCommentInput{
-		TaskID:  argsGetString(req, "task_id"),
-		Comment: argsGetString(req, "comment"),
+		TaskID:           argsGetString(req, "task_id"),
+		Comment:          argsGetString(req, "comment"),
+		ParentID:         argsGetOptionalStringPtr(req, "parent_id"),
+		SuppressAgentIDs: argsGetStringSlice(req, "suppress_agent_ids"),
 	}
 
 	result, err := s.useCase.AddComment(ctx, input)
 	if err != nil {
 		return errorResult("add comment", err), nil
+	}
+
+	return jsonResult(result), nil
+}
+
+func previewCommentTriggersTool() *mcp.Tool {
+	return newTool("multica_preview_comment_triggers", "Preview which agents a comment would trigger before posting it.", properties(
+		stringProp("task_id", "Task ID"),
+		stringProp("content", "Comment text to evaluate"),
+		stringProp("parent_id", "Optional parent comment ID for thread replies"),
+	), []string{"task_id", "content"})
+}
+
+func (s *Server) handlePreviewCommentTriggers(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.PreviewCommentTriggersInput{
+		TaskID:   argsGetString(req, "task_id"),
+		Content:  argsGetString(req, "content"),
+		ParentID: argsGetOptionalStringPtr(req, "parent_id"),
+	}
+
+	result, err := s.useCase.PreviewCommentTriggers(ctx, input)
+	if err != nil {
+		return errorResult("preview comment triggers", err), nil
+	}
+
+	return jsonResult(result), nil
+}
+
+func previewIssueTriggersTool() *mcp.Tool {
+	return newTool("multica_preview_issue_triggers", "Preview which agent runs would start for a prospective issue create or update (assignee/status changes).", properties(
+		arrayProp("issue_ids", "Issue IDs to evaluate for updates"),
+		booleanProp("is_create", "If true, preview a not-yet-created issue using assignee/status fields"),
+		stringProp("assignee_type", "Prospective assignee type: member, agent, or squad"),
+		stringProp("assignee_id", "Prospective assignee ID"),
+		stringProp("status", "Prospective status for create or update preview"),
+	), nil)
+}
+
+func (s *Server) handlePreviewIssueTriggers(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input := domain.PreviewIssueTriggersInput{
+		IssueIDs:     argsGetStringSlice(req, "issue_ids"),
+		IsCreate:     argsGetBool(req, "is_create"),
+		AssigneeType: argsGetStringPtr(req, "assignee_type"),
+		AssigneeID:   argsGetStringPtr(req, "assignee_id"),
+		Status:       argsGetStringPtr(req, "status"),
+	}
+
+	result, err := s.useCase.PreviewIssueTriggers(ctx, input)
+	if err != nil {
+		return errorResult("preview issue triggers", err), nil
 	}
 
 	return jsonResult(result), nil
@@ -448,6 +516,14 @@ func booleanProp(name, description string) property {
 	return property{Name: name, Schema: map[string]any{"type": "boolean", "description": description}}
 }
 
+func arrayProp(name, description string) property {
+	return property{Name: name, Schema: map[string]any{
+		"type":        "array",
+		"items":       map[string]any{"type": "string"},
+		"description": description,
+	}}
+}
+
 func requestArgs(req *mcp.CallToolRequest) map[string]any {
 	if req == nil || req.Params == nil || len(req.Params.Arguments) == 0 {
 		return nil
@@ -544,6 +620,32 @@ func argsGetBool(req *mcp.CallToolRequest, key string) bool {
 		return false
 	}
 	return b
+}
+
+func argsGetStringSlice(req *mcp.CallToolRequest, key string) []string {
+	args := requestArgs(req)
+	if args == nil {
+		return nil
+	}
+	v, ok := args[key]
+	if !ok {
+		return nil
+	}
+	switch items := v.(type) {
+	case []string:
+		return items
+	case []any:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			s, ok := item.(string)
+			if ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 func jsonResult(data any) *mcp.CallToolResult {
