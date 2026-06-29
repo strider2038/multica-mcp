@@ -128,6 +128,7 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 		Description:   input.Description,
 		Assignee:      input.Assignee,
 		AssigneeType:  input.AssigneeType,
+		Stage:         input.Stage,
 	}
 	if task.ProjectID != nil && *task.ProjectID != "" {
 		createInput.ProjectID = *task.ProjectID
@@ -201,6 +202,10 @@ func (u *UseCase) AddComment(ctx context.Context, input domain.AddCommentInput) 
 
 func (u *UseCase) PreviewCommentTriggers(ctx context.Context, input domain.PreviewCommentTriggersInput) (*domain.CommentTriggerPreview, error) {
 	return u.client.PreviewCommentTriggers(ctx, input)
+}
+
+func (u *UseCase) PreviewIssueTriggers(ctx context.Context, input domain.PreviewIssueTriggersInput) (*domain.IssueTriggerPreview, error) {
+	return u.client.PreviewIssueTriggers(ctx, input)
 }
 
 func (u *UseCase) ListAgents(ctx context.Context, input domain.ListAgentsInput) ([]domain.Agent, error) {
