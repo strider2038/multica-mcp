@@ -4,7 +4,7 @@ Instructions for AI agents and contributors working on **multica-mcp**.
 
 ## Multica API target
 
-- Target **Multica REST API v0.3.31** (constant `internal/version.MulticaAPI`).
+- Target **Multica REST API v0.3.38** (constant `internal/version.MulticaAPI`).
 - HTTP client lives in `internal/multica/` — update only that package when the upstream API changes.
 - Send `X-Client-Platform: mcp` and `X-Client-Version` on every request (wired in `internal/multica/client.go`).
 

@@ -314,6 +314,36 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func TestClient_ListTasks_WithAssigneeTypes(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/issues" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("assignee_types") != "agent,squad" {
+			t.Errorf("expected assignee_types agent,squad, got %q", r.URL.Query().Get("assignee_types"))
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"issues": []map[string]any{
+				{"id": "t1", "title": "Agent task", "status": "todo"},
+			},
+			"total": 1,
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	tasks, err := client.ListTasks(context.Background(), domain.ListTasksInput{
+		AssigneeTypes: []string{"agent", "squad"},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+}
+
 func TestClient_ErrorHandling(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
