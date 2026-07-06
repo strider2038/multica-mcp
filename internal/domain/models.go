@@ -144,23 +144,30 @@ type IssueTriggerPreview struct {
 	TotalCount int                       `json:"total_count"`
 }
 
+type AgentInvocationTarget struct {
+	TargetType string  `json:"target_type"`
+	TargetID   *string `json:"target_id"`
+}
+
 type Agent struct {
-	ID                 string  `json:"id"`
-	WorkspaceID        string  `json:"workspace_id"`
-	RuntimeID          string  `json:"runtime_id"`
-	Name               string  `json:"name"`
-	Description        string  `json:"description"`
-	Instructions       string  `json:"instructions"`
-	AvatarURL          *string `json:"avatar_url"`
-	RuntimeMode        string  `json:"runtime_mode"`
-	Visibility         string  `json:"visibility"`
-	Status             string  `json:"status"`
-	MaxConcurrentTasks int32   `json:"max_concurrent_tasks"`
-	Model              string  `json:"model"`
-	OwnerID            *string `json:"owner_id"`
-	CreatedAt          string  `json:"created_at"`
-	UpdatedAt          string  `json:"updated_at"`
-	ArchivedAt         *string `json:"archived_at"`
+	ID                 string                  `json:"id"`
+	WorkspaceID        string                  `json:"workspace_id"`
+	RuntimeID          string                  `json:"runtime_id"`
+	Name               string                  `json:"name"`
+	Description        string                  `json:"description"`
+	Instructions       string                  `json:"instructions"`
+	AvatarURL          *string                 `json:"avatar_url"`
+	RuntimeMode        string                  `json:"runtime_mode"`
+	Visibility         string                  `json:"visibility"`
+	PermissionMode     string                  `json:"permission_mode,omitempty"`
+	InvocationTargets  []AgentInvocationTarget `json:"invocation_targets,omitempty"`
+	Status             string                  `json:"status"`
+	MaxConcurrentTasks int32                   `json:"max_concurrent_tasks"`
+	Model              string                  `json:"model"`
+	OwnerID            *string                 `json:"owner_id"`
+	CreatedAt          string                  `json:"created_at"`
+	UpdatedAt          string                  `json:"updated_at"`
+	ArchivedAt         *string                 `json:"archived_at"`
 }
 
 type Workspace struct {
@@ -182,11 +189,12 @@ type GetProjectInput struct {
 }
 
 type ListTasksInput struct {
-	ProjectID string
-	Status    *string
-	Assignee  *string
-	Query     *string
-	Limit     *int
+	ProjectID     string
+	Status        *string
+	Assignee      *string
+	AssigneeTypes []string
+	Query         *string
+	Limit         *int
 }
 
 type GetTaskInput struct {

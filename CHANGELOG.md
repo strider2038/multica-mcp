@@ -8,6 +8,17 @@ with major version `0` while the project is in active development.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-06
+
+### Added
+
+- `multica_list_tasks` supports `assignee_types` filter (`member`, `agent`, `squad`) aligned with Multica REST API v0.3.35+.
+- Agent model includes `permission_mode` and `invocation_targets` (Multica REST API v0.3.36+).
+
+### Changed
+
+- Multica REST API target bumped from **v0.3.31** to **v0.3.38**.
+
 ## [0.2.0] - 2026-06-29
 
 ### Added
@@ -36,6 +47,7 @@ with major version `0` while the project is in active development.
 - Initial MCP server with stdio/HTTP transports and 13 Multica tools.
 - Workspace auto-detection and slug/ID scoping via `X-Workspace-*` headers.
 
-[Unreleased]: https://github.com/strider2038/multica-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/strider2038/multica-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/strider2038/multica-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/strider2038/multica-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/strider2038/multica-mcp/releases/tag/v0.1.0
