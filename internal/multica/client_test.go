@@ -310,6 +310,75 @@ func TestClient_PreviewIssueTriggers(t *testing.T) {
 	}
 }
 
+func TestClient_ListTasks_WithAssigneeTypes(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/issues" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("assignee_types"); got != "agent,squad" {
+			t.Errorf("expected assignee_types agent,squad, got %q", got)
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"issues": []map[string]any{
+				{"id": "t1", "title": "Agent task", "status": "todo"},
+			},
+			"total": 1,
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	tasks, err := client.ListTasks(context.Background(), domain.ListTasksInput{
+		AssigneeTypes: []string{"agent", "squad"},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+}
+
+func TestClient_ListAgents_WithPermissionFields(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/agents" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode([]map[string]any{
+			{
+				"id":              "agent-1",
+				"name":            "Reviewer",
+				"permission_mode": "public_to",
+				"invocation_targets": []map[string]any{
+					{"target_type": "workspace", "target_id": "ws1"},
+				},
+				"thinking_level": "high",
+			},
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	agents, err := client.ListAgents(context.Background())
+	if err != nil {
+		t.Fatalf("ListAgents: %v", err)
+	}
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(agents))
+	}
+	if agents[0].PermissionMode != "public_to" {
+		t.Errorf("expected permission_mode public_to, got %q", agents[0].PermissionMode)
+	}
+	if len(agents[0].InvocationTargets) != 1 || agents[0].InvocationTargets[0].TargetType != "workspace" {
+		t.Errorf("unexpected invocation_targets: %+v", agents[0].InvocationTargets)
+	}
+	if agents[0].ThinkingLevel != "high" {
+		t.Errorf("expected thinking_level high, got %q", agents[0].ThinkingLevel)
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

@@ -96,10 +96,11 @@ func (s *Server) handleGetProject(ctx context.Context, req *mcp.CallToolRequest)
 }
 
 func listTasksTool() *mcp.Tool {
-	return newTool("multica_list_tasks", "List tasks in a project with optional filters for status, assignee, and text query.", properties(
+	return newTool("multica_list_tasks", "List tasks in a project with optional filters for status, assignee, assignee type, and text query.", properties(
 		stringProp("project_id", "Project ID to filter tasks"),
 		stringProp("status", "Filter by status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
 		stringProp("assignee", "Filter by assignee ID"),
+		arrayProp("assignee_types", "Filter by assignee actor kinds: member, agent, squad"),
 		stringProp("query", "Optional text search query"),
 		numberProp("limit", "Maximum number of tasks to return (default 100)"),
 	), nil)
@@ -107,11 +108,12 @@ func listTasksTool() *mcp.Tool {
 
 func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.ListTasksInput{
-		ProjectID: argsGetString(req, "project_id"),
-		Status:    argsGetStringPtr(req, "status"),
-		Assignee:  argsGetStringPtr(req, "assignee"),
-		Query:     argsGetStringPtr(req, "query"),
-		Limit:     argsGetIntPtr(req, "limit"),
+		ProjectID:     argsGetString(req, "project_id"),
+		Status:        argsGetStringPtr(req, "status"),
+		Assignee:      argsGetStringPtr(req, "assignee"),
+		AssigneeTypes: argsGetStringSlice(req, "assignee_types"),
+		Query:         argsGetStringPtr(req, "query"),
+		Limit:         argsGetIntPtr(req, "limit"),
 	}
 
 	tasks, err := s.useCase.ListTasks(ctx, input)
