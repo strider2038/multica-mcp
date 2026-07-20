@@ -310,6 +310,87 @@ func TestClient_PreviewIssueTriggers(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithLabelIDs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		ids, ok := body["label_ids"].([]any)
+		if !ok || len(ids) != 2 || ids[0] != "label-1" || ids[1] != "label-2" {
+			t.Errorf("unexpected label_ids: %v", body["label_ids"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Test"})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Test",
+		Description: "desc",
+		LabelIDs:    []string{"label-1", "label-2"},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
+func TestClient_ListTasks_WithAssigneeTypes(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("assignee_types") != "agent,squad" {
+			t.Errorf("unexpected assignee_types: %q", r.URL.Query().Get("assignee_types"))
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"issues": []map[string]any{{"id": "t1", "title": "Task"}},
+			"total":  1,
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	tasks, err := client.ListTasks(context.Background(), domain.ListTasksInput{
+		AssigneeTypes: []string{"agent", "squad"},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+}
+
+func TestClient_PreviewCommentTriggers_WithBlocked(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"agents": []map[string]any{
+				{"id": "agent-1", "name": "Reviewer", "source": "mention_agent", "reason": "mentioned"},
+			},
+			"blocked": []map[string]any{
+				{
+					"target_type": "agent",
+					"target_id":   "agent-2",
+					"status":      "blocked",
+					"reason_code": "no_invoke_permission",
+				},
+			},
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	preview, err := client.PreviewCommentTriggers(context.Background(), domain.PreviewCommentTriggersInput{
+		TaskID:  "t1",
+		Content: "@agent please review",
+	})
+	if err != nil {
+		t.Fatalf("PreviewCommentTriggers: %v", err)
+	}
+	if len(preview.Agents) != 1 || len(preview.Blocked) != 1 {
+		t.Fatalf("unexpected preview: %+v", preview)
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

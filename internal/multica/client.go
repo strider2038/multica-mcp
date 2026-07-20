@@ -146,6 +146,9 @@ func (c *Client) ListTasks(ctx context.Context, opts domain.ListTasksInput) ([]d
 	if opts.Assignee != nil && *opts.Assignee != "" {
 		q.Set("assignee_id", *opts.Assignee)
 	}
+	if len(opts.AssigneeTypes) > 0 {
+		q.Set("assignee_types", strings.Join(opts.AssigneeTypes, ","))
+	}
 	if opts.Limit != nil && *opts.Limit > 0 {
 		q.Set("limit", strconv.Itoa(*opts.Limit))
 	}
@@ -202,6 +205,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	}
 	if input.Stage != nil && *input.Stage >= 1 {
 		body["stage"] = *input.Stage
+	}
+	if len(input.LabelIDs) > 0 {
+		body["label_ids"] = input.LabelIDs
 	}
 
 	var resp domain.Task
