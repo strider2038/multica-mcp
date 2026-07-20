@@ -2,7 +2,7 @@
 
 MCP server for [Multica](https://multica.ai) — the open-source managed agents platform. Allows local coding agents (Cursor, Claude Code, OpenCode, Codex, etc.) to interact with Multica projects, tasks, comments, and agents via the Model Context Protocol.
 
-Targets **Multica REST API v0.3.31**.
+Targets **Multica REST API v0.4.4**.
 
 ## Features
 
@@ -277,7 +277,7 @@ main.go                    Entry point (go install / go build)
 internal/
   config/                  Environment configuration
   domain/                  Domain models (Project, Task, Comment, Agent)
-  multica/                 HTTP client adapter for Multica API v0.3.31
+  multica/                 HTTP client adapter for Multica API v0.4.4
   app/                     Use case / business logic layer
   mcp/                     MCP tool handlers and registration
   version/                 Server and API version constants
