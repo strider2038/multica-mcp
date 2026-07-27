@@ -310,6 +310,67 @@ func TestClient_PreviewIssueTriggers(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithLabelsAndDates(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["status"] != "backlog" {
+			t.Errorf("expected status backlog, got %v", body["status"])
+		}
+		ids, ok := body["label_ids"].([]any)
+		if !ok || len(ids) != 1 || ids[0] != "label-1" {
+			t.Errorf("unexpected label_ids: %v", body["label_ids"])
+		}
+		if body["start_date"] != "2026-07-01" || body["due_date"] != "2026-07-31" {
+			t.Errorf("unexpected dates: start=%v due=%v", body["start_date"], body["due_date"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{"id": "t2", "title": "Task", "status": "backlog"})
+	}))
+	defer ts.Close()
+
+	status := "backlog"
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Task",
+		Description: "desc",
+		Status:      &status,
+		LabelIDs:    []string{"label-1"},
+		StartDate:   strPtr("2026-07-01"),
+		DueDate:     strPtr("2026-07-31"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
+func TestClient_UpdateTask_WithPositionAndClearParent(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["position"] != 42.5 {
+			t.Errorf("expected position 42.5, got %v", body["position"])
+		}
+		if body["parent_issue_id"] != nil {
+			t.Errorf("expected parent_issue_id null, got %v", body["parent_issue_id"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task"})
+	}))
+	defer ts.Close()
+
+	position := 42.5
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.UpdateTask(context.Background(), "t1", domain.UpdateTaskInput{
+		Position:    &position,
+		ClearParent: true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

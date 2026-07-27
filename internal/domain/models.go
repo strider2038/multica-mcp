@@ -68,10 +68,25 @@ type Project struct {
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
+	StartDate   *string `json:"start_date"`
+	DueDate     *string `json:"due_date"`
 	IssueCount  int64   `json:"issue_count"`
 	DoneCount   int64   `json:"done_count"`
+	ResourceCount int64 `json:"resource_count"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
+}
+
+type Label struct {
+	ID           string `json:"id"`
+	WorkspaceID  string `json:"workspace_id"`
+	ResourceType string `json:"resource_type"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Color        string `json:"color"`
+	UsageCount   int64  `json:"usage_count,omitempty"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 type Task struct {
@@ -94,6 +109,8 @@ type Task struct {
 	StartDate     *string          `json:"start_date"`
 	DueDate       *string          `json:"due_date"`
 	Metadata      map[string]any   `json:"metadata,omitempty"`
+	Properties    map[string]any   `json:"properties,omitempty"`
+	Labels        []Label          `json:"labels,omitempty"`
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
 	Reactions     []any     `json:"reactions,omitempty"`
@@ -154,9 +171,13 @@ type Agent struct {
 	AvatarURL          *string `json:"avatar_url"`
 	RuntimeMode        string  `json:"runtime_mode"`
 	Visibility         string  `json:"visibility"`
+	PermissionMode     string  `json:"permission_mode,omitempty"`
 	Status             string  `json:"status"`
 	MaxConcurrentTasks int32   `json:"max_concurrent_tasks"`
 	Model              string  `json:"model"`
+	ThinkingLevel      string  `json:"thinking_level,omitempty"`
+	HasCustomEnv       bool    `json:"has_custom_env,omitempty"`
+	CustomEnvKeyCount  int     `json:"custom_env_key_count,omitempty"`
 	OwnerID            *string `json:"owner_id"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
@@ -215,8 +236,11 @@ type CreateTaskInput struct {
 	ParentIssueID  *string
 	Title          string
 	Description    string
+	Status         *string
 	Priority       *string
-	Labels         []string
+	LabelIDs       []string
+	StartDate      *string
+	DueDate        *string
 	Assignee       *string
 	AssigneeType   *string
 	Stage          *int
@@ -235,19 +259,27 @@ type CreateSubtaskInput struct {
 }
 
 type UpdateTaskInput struct {
-	TaskID       string
-	Title        *string
-	Description  *string
-	Status       *string
-	Priority     *string
-	Labels       []string
-	Assignee     *string
-	AssigneeType *string
-	Stage        *int
-	ClearStage   bool
-	SuppressRun  bool
-	HandoffNote  string
-	DryRun       bool
+	TaskID         string
+	Title          *string
+	Description    *string
+	Status         *string
+	Priority       *string
+	Assignee       *string
+	AssigneeType   *string
+	Position       *float64
+	StartDate      *string
+	DueDate        *string
+	ClearStartDate bool
+	ClearDueDate   bool
+	ParentIssueID  *string
+	ClearParent    bool
+	ProjectID      *string
+	ClearProject   bool
+	Stage          *int
+	ClearStage     bool
+	SuppressRun    bool
+	HandoffNote    string
+	DryRun         bool
 }
 
 type AddCommentInput struct {
