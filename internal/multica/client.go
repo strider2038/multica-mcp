@@ -185,8 +185,20 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 		"title":       input.Title,
 		"description": input.Description,
 	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
+	}
 	if input.Priority != nil && *input.Priority != "" {
 		body["priority"] = *input.Priority
+	}
+	if len(input.LabelIDs) > 0 {
+		body["label_ids"] = input.LabelIDs
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
 	}
 	if input.Assignee != nil && *input.Assignee != "" {
 		body["assignee_id"] = *input.Assignee
@@ -242,6 +254,29 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 		body["stage"] = nil
 	} else if input.Stage != nil {
 		body["stage"] = *input.Stage
+	}
+	if input.ClearParent {
+		body["parent_issue_id"] = nil
+	} else if input.ParentIssueID != nil {
+		body["parent_issue_id"] = *input.ParentIssueID
+	}
+	if input.ClearProject {
+		body["project_id"] = nil
+	} else if input.ProjectID != nil {
+		body["project_id"] = *input.ProjectID
+	}
+	if input.Position != nil {
+		body["position"] = *input.Position
+	}
+	if input.ClearStartDate {
+		body["start_date"] = nil
+	} else if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.ClearDueDate {
+		body["due_date"] = nil
+	} else if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
 	}
 	if input.SuppressRun {
 		body["suppress_run"] = true

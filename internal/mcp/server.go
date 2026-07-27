@@ -144,7 +144,11 @@ func createTaskTool() *mcp.Tool {
 		stringProp("project_id", "Project ID to create the task in"),
 		stringProp("title", "Task title"),
 		stringProp("description", "Task description (Markdown supported)"),
+		stringProp("status", "Initial status: backlog, todo, in_progress, in_review, done, blocked, cancelled (default: todo)"),
 		stringProp("priority", "Task priority: none, urgent, high, medium, low"),
+		arrayProp("label_ids", "Label IDs to attach when creating the task"),
+		stringProp("start_date", "Start date in YYYY-MM-DD format"),
+		stringProp("due_date", "Due date in YYYY-MM-DD format"),
 		stringProp("assignee", "Assignee ID (member, agent, or squad)"),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad (inferred from agents list when omitted)"),
 		numberProp("stage", "Optional ordered stage (>= 1) for sub-issue barrier grouping under a parent"),
@@ -157,7 +161,11 @@ func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest)
 		ProjectID:    argsGetString(req, "project_id"),
 		Title:        argsGetString(req, "title"),
 		Description:  argsGetString(req, "description"),
+		Status:       argsGetStringPtr(req, "status"),
 		Priority:     argsGetStringPtr(req, "priority"),
+		LabelIDs:     argsGetStringSlice(req, "label_ids"),
+		StartDate:    argsGetStringPtr(req, "start_date"),
+		DueDate:      argsGetStringPtr(req, "due_date"),
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		Stage:        argsGetIntPtr(req, "stage"),
@@ -204,7 +212,7 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolReque
 }
 
 func updateTaskTool() *mcp.Tool {
-	return newTool("multica_update_task", "Update a task's title, description, status, priority, assignee, or stage. Use suppress_run to apply assignee/status changes without starting an agent run, and handoff_note to inject context when a run starts.", properties(
+	return newTool("multica_update_task", "Update a task's title, description, status, priority, assignee, dates, position, parent, project, or stage. Use suppress_run to apply assignee/status changes without starting an agent run, and handoff_note to inject context when a run starts.", properties(
 		stringProp("task_id", "Task ID to update"),
 		stringProp("title", "New title"),
 		stringProp("description", "New description"),
@@ -212,6 +220,15 @@ func updateTaskTool() *mcp.Tool {
 		stringProp("priority", "New priority: none, urgent, high, medium, low"),
 		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
+		numberProp("position", "Ordering position within the project or parent"),
+		stringProp("start_date", "Start date in YYYY-MM-DD format"),
+		stringProp("due_date", "Due date in YYYY-MM-DD format"),
+		booleanProp("clear_start_date", "If true, remove the start date"),
+		booleanProp("clear_due_date", "If true, remove the due date"),
+		stringProp("parent_issue_id", "New parent issue ID"),
+		booleanProp("clear_parent", "If true, detach the task from its parent issue"),
+		stringProp("project_id", "Move the task to another project"),
+		booleanProp("clear_project", "If true, remove the task from its project"),
 		numberProp("stage", "Ordered stage (>= 1) for sub-issue barrier grouping"),
 		booleanProp("clear_stage", "If true, remove the task from its stage (unstage)"),
 		booleanProp("suppress_run", "If true, apply changes without enqueueing an agent run"),
@@ -222,18 +239,27 @@ func updateTaskTool() *mcp.Tool {
 
 func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.UpdateTaskInput{
-		TaskID:      argsGetString(req, "task_id"),
-		Title:       argsGetStringPtr(req, "title"),
-		Description: argsGetStringPtr(req, "description"),
-		Status:      argsGetStringPtr(req, "status"),
-		Priority:    argsGetStringPtr(req, "priority"),
-		Assignee:     argsGetOptionalStringPtr(req, "assignee"),
-		AssigneeType: argsGetStringPtr(req, "assignee_type"),
-		Stage:        argsGetIntPtr(req, "stage"),
-		ClearStage:   argsGetBool(req, "clear_stage"),
-		SuppressRun:  argsGetBool(req, "suppress_run"),
-		HandoffNote:  argsGetString(req, "handoff_note"),
-		DryRun:       argsGetBool(req, "dry_run"),
+		TaskID:         argsGetString(req, "task_id"),
+		Title:          argsGetStringPtr(req, "title"),
+		Description:    argsGetStringPtr(req, "description"),
+		Status:         argsGetStringPtr(req, "status"),
+		Priority:       argsGetStringPtr(req, "priority"),
+		Assignee:       argsGetOptionalStringPtr(req, "assignee"),
+		AssigneeType:   argsGetStringPtr(req, "assignee_type"),
+		Position:       argsGetFloat64Ptr(req, "position"),
+		StartDate:      argsGetStringPtr(req, "start_date"),
+		DueDate:        argsGetStringPtr(req, "due_date"),
+		ClearStartDate: argsGetBool(req, "clear_start_date"),
+		ClearDueDate:   argsGetBool(req, "clear_due_date"),
+		ParentIssueID:  argsGetStringPtr(req, "parent_issue_id"),
+		ClearParent:    argsGetBool(req, "clear_parent"),
+		ProjectID:      argsGetStringPtr(req, "project_id"),
+		ClearProject:   argsGetBool(req, "clear_project"),
+		Stage:          argsGetIntPtr(req, "stage"),
+		ClearStage:     argsGetBool(req, "clear_stage"),
+		SuppressRun:    argsGetBool(req, "suppress_run"),
+		HandoffNote:    argsGetString(req, "handoff_note"),
+		DryRun:         argsGetBool(req, "dry_run"),
 	}
 
 	result, err := s.useCase.UpdateTask(ctx, input)
@@ -602,6 +628,37 @@ func argsGetIntPtr(req *mcp.CallToolRequest, key string) *int {
 			return nil
 		}
 		return &i
+	}
+	return nil
+}
+
+func argsGetFloat64Ptr(req *mcp.CallToolRequest, key string) *float64 {
+	args := requestArgs(req)
+	if args == nil {
+		return nil
+	}
+	v, ok := args[key]
+	if !ok {
+		return nil
+	}
+	switch n := v.(type) {
+	case float64:
+		return &n
+	case json.Number:
+		f, err := n.Float64()
+		if err != nil {
+			return nil
+		}
+		return &f
+	case int64:
+		f := float64(n)
+		return &f
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			return nil
+		}
+		return &f
 	}
 	return nil
 }
