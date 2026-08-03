@@ -68,10 +68,25 @@ type Project struct {
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
+	StartDate   *string `json:"start_date"`
+	DueDate     *string `json:"due_date"`
 	IssueCount  int64   `json:"issue_count"`
 	DoneCount   int64   `json:"done_count"`
+	ResourceCount int64 `json:"resource_count"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
+}
+
+type Label struct {
+	ID           string `json:"id"`
+	WorkspaceID  string `json:"workspace_id"`
+	ResourceType string `json:"resource_type"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Color        string `json:"color"`
+	UsageCount   int64  `json:"usage_count,omitempty"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 type Task struct {
@@ -94,6 +109,8 @@ type Task struct {
 	StartDate     *string          `json:"start_date"`
 	DueDate       *string          `json:"due_date"`
 	Metadata      map[string]any   `json:"metadata,omitempty"`
+	Properties    map[string]any   `json:"properties,omitempty"`
+	Labels        []Label          `json:"labels,omitempty"`
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
 	Reactions     []any     `json:"reactions,omitempty"`
@@ -116,8 +133,20 @@ type Comment struct {
 	ReplyCount     *int    `json:"reply_count,omitempty"`
 	LastActivityAt *string `json:"last_activity_at,omitempty"`
 	SourceTaskID   *string `json:"source_task_id,omitempty"`
+	QuickActionID  *string `json:"quick_action_id,omitempty"`
+	ContentTruncated *bool `json:"content_truncated,omitempty"`
+	ThreadResolved *bool   `json:"thread_resolved,omitempty"`
+	FoldedCount    *int    `json:"folded_count,omitempty"`
+	TriggerOutcomes []CommentTriggerOutcome `json:"trigger_outcomes,omitempty"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
+}
+
+type CommentTriggerOutcome struct {
+	TargetType string `json:"target_type"`
+	TargetID   string `json:"target_id"`
+	Status     string `json:"status"`
+	ReasonCode string `json:"reason_code"`
 }
 
 type CommentTriggerAgent struct {
@@ -144,23 +173,37 @@ type IssueTriggerPreview struct {
 	TotalCount int                       `json:"total_count"`
 }
 
+type AgentInvocationTarget struct {
+	TargetType string  `json:"target_type"`
+	TargetID   *string `json:"target_id"`
+}
+
 type Agent struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
 	RuntimeID          string  `json:"runtime_id"`
+	RuntimeBound       bool    `json:"runtime_bound"`
 	Name               string  `json:"name"`
 	Description        string  `json:"description"`
 	Instructions       string  `json:"instructions"`
 	AvatarURL          *string `json:"avatar_url"`
 	RuntimeMode        string  `json:"runtime_mode"`
 	Visibility         string  `json:"visibility"`
+	PermissionMode     string  `json:"permission_mode"`
+	InvocationTargets  []AgentInvocationTarget `json:"invocation_targets,omitempty"`
 	Status             string  `json:"status"`
 	MaxConcurrentTasks int32   `json:"max_concurrent_tasks"`
 	Model              string  `json:"model"`
+	ThinkingLevel      string  `json:"thinking_level"`
+	ServiceTier        string  `json:"service_tier"`
+	HasCustomEnv       bool    `json:"has_custom_env"`
+	CustomEnvKeyCount  int     `json:"custom_env_key_count"`
+	McpConfigRedacted  bool    `json:"mcp_config_redacted"`
 	OwnerID            *string `json:"owner_id"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
 	ArchivedAt         *string `json:"archived_at"`
+	ArchivedBy         *string `json:"archived_by"`
 }
 
 type Workspace struct {

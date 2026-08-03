@@ -143,6 +143,36 @@ func TestClient_CreateTask_WithParentIssue(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithLabelIDs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		ids, ok := body["label_ids"].([]any)
+		if !ok || len(ids) != 2 || ids[0] != "label-1" || ids[1] != "label-2" {
+			t.Errorf("unexpected label_ids: %v", body["label_ids"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id":         "t1",
+			"title":      "Test",
+			"status":     "todo",
+			"identifier": "MUL-1",
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Test",
+		Description: "desc",
+		Labels:      []string{"label-1", "label-2"},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
 func TestClient_CreateComment_WithSuppressAgentIDs(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

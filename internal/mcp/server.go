@@ -148,6 +148,7 @@ func createTaskTool() *mcp.Tool {
 		stringProp("assignee", "Assignee ID (member, agent, or squad)"),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad (inferred from agents list when omitted)"),
 		numberProp("stage", "Optional ordered stage (>= 1) for sub-issue barrier grouping under a parent"),
+		arrayProp("labels", "Issue label IDs to attach on create"),
 		booleanProp("dry_run", "If true, validate without creating"),
 	), []string{"project_id", "title", "description"})
 }
@@ -161,6 +162,7 @@ func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest)
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		Stage:        argsGetIntPtr(req, "stage"),
+		Labels:       argsGetStringSlice(req, "labels"),
 		DryRun:       argsGetBool(req, "dry_run"),
 	}
 
