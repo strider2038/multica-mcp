@@ -203,6 +203,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.Stage != nil && *input.Stage >= 1 {
 		body["stage"] = *input.Stage
 	}
+	if len(input.Labels) > 0 {
+		body["label_ids"] = input.Labels
+	}
 
 	var resp domain.Task
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
