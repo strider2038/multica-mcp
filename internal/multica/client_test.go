@@ -143,6 +143,71 @@ func TestClient_CreateTask_WithParentIssue(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithLabelsAndDates(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["status"] != "backlog" {
+			t.Errorf("expected status backlog, got %v", body["status"])
+		}
+		if body["start_date"] != "2026-08-01" {
+			t.Errorf("expected start_date, got %v", body["start_date"])
+		}
+		ids, ok := body["label_ids"].([]any)
+		if !ok || len(ids) != 1 || ids[0] != "label-1" {
+			t.Errorf("unexpected label_ids: %v", body["label_ids"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Test", "status": "backlog"})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	status := "backlog"
+	start := "2026-08-01"
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Test",
+		Description: "desc",
+		Status:      &status,
+		StartDate:   &start,
+		Labels:      []string{"label-1"},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
+func TestClient_UpdateTask_WithPositionAndClearDates(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["position"] != 42.5 {
+			t.Errorf("expected position 42.5, got %v", body["position"])
+		}
+		if body["start_date"] != nil {
+			t.Errorf("expected start_date null, got %v", body["start_date"])
+		}
+		if body["parent_issue_id"] != nil {
+			t.Errorf("expected parent_issue_id null, got %v", body["parent_issue_id"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task"})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	pos := 42.5
+	_, err := client.UpdateTask(context.Background(), "t1", domain.UpdateTaskInput{
+		Position:           &pos,
+		ClearStartDate:     true,
+		ClearParentIssueID: true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+}
+
 func TestClient_CreateComment_WithSuppressAgentIDs(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
