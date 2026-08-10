@@ -188,6 +188,18 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.Priority != nil && *input.Priority != "" {
 		body["priority"] = *input.Priority
 	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
+	}
+	if len(input.Labels) > 0 {
+		body["label_ids"] = input.Labels
+	}
 	if input.Assignee != nil && *input.Assignee != "" {
 		body["assignee_id"] = *input.Assignee
 		if input.AssigneeType != nil && *input.AssigneeType != "" {
@@ -226,6 +238,29 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 	}
 	if input.Priority != nil {
 		body["priority"] = *input.Priority
+	}
+	if input.Position != nil {
+		body["position"] = *input.Position
+	}
+	if input.ClearStartDate {
+		body["start_date"] = nil
+	} else if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.ClearDueDate {
+		body["due_date"] = nil
+	} else if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
+	}
+	if input.ClearParentIssueID {
+		body["parent_issue_id"] = nil
+	} else if input.ParentIssueID != nil && *input.ParentIssueID != "" {
+		body["parent_issue_id"] = *input.ParentIssueID
+	}
+	if input.ClearProjectID {
+		body["project_id"] = nil
+	} else if input.ProjectID != nil && *input.ProjectID != "" {
+		body["project_id"] = *input.ProjectID
 	}
 	if input.Assignee != nil {
 		if *input.Assignee == "" {

@@ -59,19 +59,33 @@ func (p Priority) IsValid() bool {
 }
 
 type Project struct {
-	ID          string  `json:"id"`
-	WorkspaceID string  `json:"workspace_id"`
-	Title       string  `json:"title"`
-	Description *string `json:"description"`
-	Icon        *string `json:"icon"`
-	Status      string  `json:"status"`
-	Priority    string  `json:"priority"`
-	LeadType    *string `json:"lead_type"`
-	LeadID      *string `json:"lead_id"`
-	IssueCount  int64   `json:"issue_count"`
-	DoneCount   int64   `json:"done_count"`
-	CreatedAt   string  `json:"created_at"`
-	UpdatedAt   string  `json:"updated_at"`
+	ID            string  `json:"id"`
+	WorkspaceID   string  `json:"workspace_id"`
+	Title         string  `json:"title"`
+	Description   *string `json:"description"`
+	Icon          *string `json:"icon"`
+	Status        string  `json:"status"`
+	Priority      string  `json:"priority"`
+	LeadType      *string `json:"lead_type"`
+	LeadID        *string `json:"lead_id"`
+	StartDate     *string `json:"start_date"`
+	DueDate       *string `json:"due_date"`
+	IssueCount    int64   `json:"issue_count"`
+	DoneCount     int64   `json:"done_count"`
+	ResourceCount int64   `json:"resource_count"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
+}
+
+type Label struct {
+	ID           string  `json:"id"`
+	WorkspaceID  string  `json:"workspace_id"`
+	ResourceType string  `json:"resource_type"`
+	Name         string  `json:"name"`
+	Description  *string `json:"description"`
+	Color        string  `json:"color"`
+	CreatedAt    string  `json:"created_at"`
+	UpdatedAt    string  `json:"updated_at"`
 }
 
 type Task struct {
@@ -93,7 +107,9 @@ type Task struct {
 	Stage         *int             `json:"stage"`
 	StartDate     *string          `json:"start_date"`
 	DueDate       *string          `json:"due_date"`
-	Metadata      map[string]any   `json:"metadata,omitempty"`
+	Metadata      map[string]any   `json:"metadata"`
+	Properties    map[string]any   `json:"properties"`
+	Labels        []Label          `json:"labels,omitempty"`
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
 	Reactions     []any     `json:"reactions,omitempty"`
@@ -148,15 +164,20 @@ type Agent struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
 	RuntimeID          string  `json:"runtime_id"`
+	RuntimeBound       bool    `json:"runtime_bound"`
 	Name               string  `json:"name"`
 	Description        string  `json:"description"`
 	Instructions       string  `json:"instructions"`
 	AvatarURL          *string `json:"avatar_url"`
 	RuntimeMode        string  `json:"runtime_mode"`
 	Visibility         string  `json:"visibility"`
+	PermissionMode     string  `json:"permission_mode"`
 	Status             string  `json:"status"`
 	MaxConcurrentTasks int32   `json:"max_concurrent_tasks"`
 	Model              string  `json:"model"`
+	ThinkingLevel      string  `json:"thinking_level"`
+	HasCustomEnv       bool    `json:"has_custom_env"`
+	CustomEnvKeyCount  int     `json:"custom_env_key_count"`
 	OwnerID            *string `json:"owner_id"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
@@ -215,7 +236,10 @@ type CreateTaskInput struct {
 	ParentIssueID  *string
 	Title          string
 	Description    string
+	Status         *string
 	Priority       *string
+	StartDate      *string
+	DueDate        *string
 	Labels         []string
 	Assignee       *string
 	AssigneeType   *string
@@ -235,19 +259,28 @@ type CreateSubtaskInput struct {
 }
 
 type UpdateTaskInput struct {
-	TaskID       string
-	Title        *string
-	Description  *string
-	Status       *string
-	Priority     *string
-	Labels       []string
-	Assignee     *string
-	AssigneeType *string
-	Stage        *int
-	ClearStage   bool
-	SuppressRun  bool
-	HandoffNote  string
-	DryRun       bool
+	TaskID              string
+	Title               *string
+	Description         *string
+	Status              *string
+	Priority            *string
+	Position            *float64
+	StartDate           *string
+	DueDate             *string
+	ClearStartDate      bool
+	ClearDueDate        bool
+	ParentIssueID       *string
+	ClearParentIssueID  bool
+	ProjectID           *string
+	ClearProjectID      bool
+	Labels              []string
+	Assignee            *string
+	AssigneeType        *string
+	Stage               *int
+	ClearStage          bool
+	SuppressRun         bool
+	HandoffNote         string
+	DryRun              bool
 }
 
 type AddCommentInput struct {
