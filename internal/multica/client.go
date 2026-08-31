@@ -185,6 +185,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 		"title":       input.Title,
 		"description": input.Description,
 	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
+	}
 	if input.Priority != nil && *input.Priority != "" {
 		body["priority"] = *input.Priority
 	}
@@ -203,6 +206,15 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.Stage != nil && *input.Stage >= 1 {
 		body["stage"] = *input.Stage
 	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
+	}
+	if len(input.LabelIDs) > 0 {
+		body["label_ids"] = input.LabelIDs
+	}
 
 	var resp domain.Task
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
@@ -215,6 +227,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.UpdateTaskInput) (*domain.Task, error) {
 	path := "/api/issues/" + taskID
 	body := map[string]any{}
+	if input.ExpectedRevision != nil {
+		body["expected_revision"] = *input.ExpectedRevision
+	}
 	if input.Title != nil {
 		body["title"] = *input.Title
 	}
@@ -237,6 +252,27 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 				body["assignee_type"] = *input.AssigneeType
 			}
 		}
+	}
+	if input.Position != nil {
+		body["position"] = *input.Position
+	}
+	if input.ClearStartDate {
+		body["start_date"] = nil
+	} else if input.StartDate != nil {
+		body["start_date"] = *input.StartDate
+	}
+	if input.ClearDueDate {
+		body["due_date"] = nil
+	} else if input.DueDate != nil {
+		body["due_date"] = *input.DueDate
+	}
+	if input.DetachParent {
+		body["parent_issue_id"] = nil
+	} else if input.ParentIssueID != nil {
+		body["parent_issue_id"] = *input.ParentIssueID
+	}
+	if input.ProjectID != nil {
+		body["project_id"] = *input.ProjectID
 	}
 	if input.ClearStage {
 		body["stage"] = nil

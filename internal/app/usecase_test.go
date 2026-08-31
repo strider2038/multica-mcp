@@ -185,19 +185,30 @@ func TestCreateTask_DryRun(t *testing.T) {
 	}
 }
 
-func TestUpdateTask_InvalidStatus(t *testing.T) {
+func TestUpdateTask_CustomStatus(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("should not make HTTP call for invalid status")
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["status"] != "human_review" {
+			t.Errorf("expected status human_review, got %v", body["status"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task", "status": "human_review"})
 	})
 	defer ts.Close()
 
-	status := "invalid_status"
-	_, err := uc.UpdateTask(context.Background(), domain.UpdateTaskInput{
+	status := "human_review"
+	result, err := uc.UpdateTask(context.Background(), domain.UpdateTaskInput{
 		TaskID: "t1",
 		Status: &status,
 	})
-	if err == nil {
-		t.Fatal("expected error for invalid status")
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	if result.Status != "human_review" {
+		t.Errorf("expected status human_review, got %q", result.Status)
 	}
 }
 

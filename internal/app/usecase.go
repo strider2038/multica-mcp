@@ -160,10 +160,6 @@ func (u *UseCase) UpdateTask(ctx context.Context, input domain.UpdateTaskInput) 
 		return nil, err
 	}
 
-	if input.Status != nil && !domain.TaskStatus(*input.Status).IsValid() {
-		return nil, fmt.Errorf("invalid status %q; valid values: %s", *input.Status, validStatusList())
-	}
-
 	if input.DryRun {
 		return &domain.CreateTaskResult{
 			ID:     input.TaskID,
@@ -384,14 +380,6 @@ func planSubtasks(title, description string) []domain.PlannedSubtask {
 			AcceptanceCriteria: []string{"Documentation updated", "Code reviewed and cleaned"},
 		},
 	}
-}
-
-func validStatusList() string {
-	statuses := make([]string, len(domain.ValidTaskStatuses))
-	for i, s := range domain.ValidTaskStatuses {
-		statuses[i] = string(s)
-	}
-	return strings.Join(statuses, ", ")
 }
 
 func stringPtrValue(s *string, fallback string) string {
