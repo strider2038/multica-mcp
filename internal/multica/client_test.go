@@ -107,6 +107,83 @@ func TestClient_CreateTask(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithExtendedFields(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["status"] != "in_progress" {
+			t.Errorf("expected status in_progress, got %v", body["status"])
+		}
+		if body["start_date"] != "2026-09-01" {
+			t.Errorf("expected start_date, got %v", body["start_date"])
+		}
+		if body["due_date"] != "2026-09-30" {
+			t.Errorf("expected due_date, got %v", body["due_date"])
+		}
+		ids, ok := body["label_ids"].([]any)
+		if !ok || len(ids) != 1 || ids[0] != "label-1" {
+			t.Errorf("unexpected label_ids: %v", body["label_ids"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id": "t1", "title": "Test", "status": "in_progress", "identifier": "MUL-1",
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	status := "in_progress"
+	start := "2026-09-01"
+	due := "2026-09-30"
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Test",
+		Description: "desc",
+		Status:      &status,
+		StartDate:   &start,
+		DueDate:     &due,
+		Labels:      []string{"label-1"},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
+func TestClient_UpdateTask_WithPositionAndDates(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["position"] != 42.5 {
+			t.Errorf("expected position 42.5, got %v", body["position"])
+		}
+		if body["start_date"] != "2026-09-01" {
+			t.Errorf("expected start_date, got %v", body["start_date"])
+		}
+		if body["due_date"] != nil {
+			t.Errorf("expected due_date null, got %v", body["due_date"])
+		}
+		if body["parent_issue_id"] != nil {
+			t.Errorf("expected parent_issue_id null, got %v", body["parent_issue_id"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task"})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	pos := 42.5
+	start := "2026-09-01"
+	_, err := client.UpdateTask(context.Background(), "t1", domain.UpdateTaskInput{
+		Position:       &pos,
+		StartDate:      &start,
+		ClearDueDate:   true,
+		ClearParent:    true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+}
+
 func TestClient_CreateTask_WithParentIssue(t *testing.T) {
 	parentID := "parent-1"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
