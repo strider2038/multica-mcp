@@ -203,6 +203,18 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	if input.Stage != nil && *input.Stage >= 1 {
 		body["stage"] = *input.Stage
 	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		body["start_date"] = *input.StartDate
+	}
+	if input.DueDate != nil && *input.DueDate != "" {
+		body["due_date"] = *input.DueDate
+	}
+	if len(input.Labels) > 0 {
+		body["label_ids"] = input.Labels
+	}
 
 	var resp domain.Task
 	if err := c.doPost(ctx, path, body, &resp, true); err != nil {
@@ -248,6 +260,27 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 	}
 	if input.HandoffNote != "" {
 		body["handoff_note"] = input.HandoffNote
+	}
+	if input.Position != nil {
+		body["position"] = *input.Position
+	}
+	if input.ClearStartDate {
+		body["start_date"] = nil
+	} else if input.StartDate != nil {
+		body["start_date"] = *input.StartDate
+	}
+	if input.ClearDueDate {
+		body["due_date"] = nil
+	} else if input.DueDate != nil {
+		body["due_date"] = *input.DueDate
+	}
+	if input.DetachParent {
+		body["parent_issue_id"] = nil
+	} else if input.ParentIssueID != nil {
+		body["parent_issue_id"] = *input.ParentIssueID
+	}
+	if input.ProjectID != nil {
+		body["project_id"] = *input.ProjectID
 	}
 
 	var resp domain.Task

@@ -251,6 +251,65 @@ func TestClient_UpdateTask_WithSuppressRunAndHandoff(t *testing.T) {
 	}
 }
 
+func TestClient_CreateTask_WithLabelsAndDates(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["label_ids"] == nil {
+			t.Errorf("expected label_ids in body, got %v", body)
+		}
+		if body["start_date"] != "2026-09-01" || body["due_date"] != "2026-09-30" {
+			t.Errorf("unexpected dates: %v", body)
+		}
+		if body["status"] != "in_progress" {
+			t.Errorf("expected status in_progress, got %v", body["status"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Test", "status": "in_progress"})
+	}))
+	defer ts.Close()
+
+	status := "in_progress"
+	start := "2026-09-01"
+	due := "2026-09-30"
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.CreateTask(context.Background(), domain.CreateTaskInput{
+		Title:       "Test",
+		Description: "desc",
+		Status:      &status,
+		StartDate:   &start,
+		DueDate:     &due,
+		Labels:      []string{"label-1"},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+}
+
+func TestClient_UpdateTask_ClearDatesAndDetachParent(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["start_date"] != nil || body["due_date"] != nil || body["parent_issue_id"] != nil {
+			t.Errorf("expected cleared nullable fields, got %v", body)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task"})
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.UpdateTask(context.Background(), "t1", domain.UpdateTaskInput{
+		ClearStartDate: true,
+		ClearDueDate:   true,
+		DetachParent:   true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+}
+
 func TestClient_UpdateTask_ClearStage(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
