@@ -8,6 +8,19 @@ with major version `0` while the project is in active development.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-14
+
+### Added
+
+- MCP `multica_create_task`: `status`, `start_date`, `due_date`, and `label_ids`.
+- MCP `multica_update_task`: `position`, schedule dates (with clear flags), `parent_issue_id`, `detach_parent`, and `project_id`.
+
+### Changed
+
+- Multica REST API target bumped from **v0.3.31** to **v0.4.43** (custom issue statuses, labels at create, extended issue/project/agent response fields).
+- Task, project, and agent models decode additional API fields (`status_name`, `labels`, `properties`, `revision`, agent runtime metadata, and others).
+- Status validation for updates is delegated to the Multica API (workspace custom statuses are accepted).
+
 ## [0.2.0] - 2026-06-29
 
 ### Added
@@ -36,6 +49,7 @@ with major version `0` while the project is in active development.
 - Initial MCP server with stdio/HTTP transports and 13 Multica tools.
 - Workspace auto-detection and slug/ID scoping via `X-Workspace-*` headers.
 
-[Unreleased]: https://github.com/strider2038/multica-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/strider2038/multica-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/strider2038/multica-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/strider2038/multica-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/strider2038/multica-mcp/releases/tag/v0.1.0
