@@ -68,10 +68,25 @@ type Project struct {
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
+	StartDate   *string `json:"start_date"`
+	DueDate     *string `json:"due_date"`
 	IssueCount  int64   `json:"issue_count"`
 	DoneCount   int64   `json:"done_count"`
+	ResourceCount int64 `json:"resource_count"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
+}
+
+type Label struct {
+	ID           string `json:"id"`
+	WorkspaceID  string `json:"workspace_id"`
+	ResourceType string `json:"resource_type"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Color        string `json:"color"`
+	UsageCount   int64  `json:"usage_count"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 type Task struct {
@@ -82,6 +97,8 @@ type Task struct {
 	Title         string    `json:"title"`
 	Description   *string   `json:"description"`
 	Status        string    `json:"status"`
+	StatusCategory string   `json:"status_category,omitempty"`
+	StatusName    string    `json:"status_name"`
 	Priority      string    `json:"priority"`
 	AssigneeType  *string   `json:"assignee_type"`
 	AssigneeID    *string   `json:"assignee_id"`
@@ -93,9 +110,13 @@ type Task struct {
 	Stage         *int             `json:"stage"`
 	StartDate     *string          `json:"start_date"`
 	DueDate       *string          `json:"due_date"`
-	Metadata      map[string]any   `json:"metadata,omitempty"`
+	Revision      int64            `json:"revision"`
+	LastActivityAt *string         `json:"last_activity_at"`
+	Metadata      map[string]any   `json:"metadata"`
+	Properties    map[string]any   `json:"properties"`
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
+	Labels        []Label   `json:"labels,omitempty"`
 	Reactions     []any     `json:"reactions,omitempty"`
 	Attachments   []any     `json:"attachments,omitempty"`
 	Comments      []Comment `json:"comments,omitempty"`
@@ -148,15 +169,22 @@ type Agent struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
 	RuntimeID          string  `json:"runtime_id"`
+	RuntimeBound       bool    `json:"runtime_bound"`
+	RuntimeAvailability string `json:"runtime_availability,omitempty"`
 	Name               string  `json:"name"`
 	Description        string  `json:"description"`
 	Instructions       string  `json:"instructions"`
 	AvatarURL          *string `json:"avatar_url"`
 	RuntimeMode        string  `json:"runtime_mode"`
 	Visibility         string  `json:"visibility"`
+	PermissionMode     string  `json:"permission_mode"`
 	Status             string  `json:"status"`
 	MaxConcurrentTasks int32   `json:"max_concurrent_tasks"`
 	Model              string  `json:"model"`
+	ThinkingLevel      string  `json:"thinking_level"`
+	HasCustomEnv       bool    `json:"has_custom_env"`
+	CustomEnvKeyCount  int     `json:"custom_env_key_count"`
+	McpConfigRedacted  bool    `json:"mcp_config_redacted"`
 	OwnerID            *string `json:"owner_id"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
@@ -215,7 +243,10 @@ type CreateTaskInput struct {
 	ParentIssueID  *string
 	Title          string
 	Description    string
+	Status         *string
 	Priority       *string
+	StartDate      *string
+	DueDate        *string
 	Labels         []string
 	Assignee       *string
 	AssigneeType   *string
@@ -240,7 +271,14 @@ type UpdateTaskInput struct {
 	Description  *string
 	Status       *string
 	Priority     *string
-	Labels       []string
+	Position     *float64
+	StartDate    *string
+	ClearStartDate bool
+	DueDate      *string
+	ClearDueDate bool
+	ParentIssueID *string
+	DetachParent  bool
+	ProjectID     *string
 	Assignee     *string
 	AssigneeType *string
 	Stage        *int
