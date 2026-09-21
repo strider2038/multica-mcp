@@ -8,7 +8,7 @@ with major version `0` while the project is in active development.
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-09-14
+## [0.3.0] - 2026-09-21
 
 ### Added
 
@@ -17,7 +17,7 @@ with major version `0` while the project is in active development.
 
 ### Changed
 
-- Multica REST API target bumped from **v0.3.31** to **v0.4.43** (custom issue statuses, labels at create, extended issue/project/agent response fields).
+- Multica REST API target bumped from **v0.3.31** to **v0.5.0** (custom issue statuses, labels at create, extended issue/project/agent response fields; aligned with multica-ai/multica through v0.5.0).
 - Task, project, and agent models decode additional API fields (`status_name`, `labels`, `properties`, `revision`, agent runtime metadata, and others).
 - Status validation for updates is delegated to the Multica API (workspace custom statuses are accepted).
 
