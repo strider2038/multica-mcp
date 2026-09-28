@@ -282,6 +282,9 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, input domain.Upd
 	if input.ProjectID != nil {
 		body["project_id"] = *input.ProjectID
 	}
+	if input.DuplicateOfIssueID != nil && *input.DuplicateOfIssueID != "" {
+		body["duplicate_of_issue_id"] = *input.DuplicateOfIssueID
+	}
 
 	var resp domain.Task
 	if err := c.doPut(ctx, path, body, &resp, true); err != nil {

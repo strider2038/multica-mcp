@@ -212,7 +212,7 @@ func (s *Server) handleCreateSubtask(ctx context.Context, req *mcp.CallToolReque
 }
 
 func updateTaskTool() *mcp.Tool {
-	return newTool("multica_update_task", "Update a task's title, description, status, priority, assignee, dates, parent, project, position, or stage. Use suppress_run to apply assignee/status changes without starting an agent run, and handoff_note to inject context when a run starts.", properties(
+	return newTool("multica_update_task", "Update a task's title, description, status, priority, assignee, dates, parent, project, position, stage, or duplicate mark. Use suppress_run to apply assignee/status changes without starting an agent run, and handoff_note to inject context when a run starts.", properties(
 		stringProp("task_id", "Task ID to update"),
 		stringProp("title", "New title"),
 		stringProp("description", "New description"),
@@ -226,6 +226,7 @@ func updateTaskTool() *mcp.Tool {
 		stringProp("parent_issue_id", "Move under this parent issue ID"),
 		booleanProp("detach_parent", "If true, remove the parent link (make a top-level issue)"),
 		stringProp("project_id", "Move the issue to this project ID"),
+		stringProp("duplicate_of_issue_id", "Mark this issue as a duplicate of another issue (sets status to cancelled per API)"),
 		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
 		numberProp("stage", "Ordered stage (>= 1) for sub-issue barrier grouping"),
@@ -250,8 +251,9 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		ClearDueDate:   argsGetBool(req, "clear_due_date"),
 		ParentIssueID:  argsGetStringPtr(req, "parent_issue_id"),
 		DetachParent:   argsGetBool(req, "detach_parent"),
-		ProjectID:      argsGetStringPtr(req, "project_id"),
-		Assignee:       argsGetOptionalStringPtr(req, "assignee"),
+		ProjectID:            argsGetStringPtr(req, "project_id"),
+		DuplicateOfIssueID:   argsGetStringPtr(req, "duplicate_of_issue_id"),
+		Assignee:             argsGetOptionalStringPtr(req, "assignee"),
 		AssigneeType:   argsGetStringPtr(req, "assignee_type"),
 		Stage:          argsGetIntPtr(req, "stage"),
 		ClearStage:     argsGetBool(req, "clear_stage"),

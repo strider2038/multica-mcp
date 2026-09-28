@@ -287,6 +287,28 @@ func TestClient_CreateTask_WithLabelsAndDates(t *testing.T) {
 	}
 }
 
+func TestClient_UpdateTask_DuplicateOfIssueID(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["duplicate_of_issue_id"] != "orig-1" {
+			t.Errorf("expected duplicate_of_issue_id orig-1, got %v", body)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "title": "Task", "status": "cancelled"})
+	}))
+	defer ts.Close()
+
+	dup := "orig-1"
+	client := NewClient(ts.URL, "test-token", "test")
+	client.SetWorkspaceScope("ws1", "")
+	_, err := client.UpdateTask(context.Background(), "t1", domain.UpdateTaskInput{
+		DuplicateOfIssueID: &dup,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+}
+
 func TestClient_UpdateTask_ClearDatesAndDetachParent(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any

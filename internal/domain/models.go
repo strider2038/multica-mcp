@@ -77,6 +77,13 @@ type Project struct {
 	UpdatedAt   string  `json:"updated_at"`
 }
 
+type IssueRef struct {
+	ID         string `json:"id"`
+	Identifier string `json:"identifier"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+}
+
 type Label struct {
 	ID           string `json:"id"`
 	WorkspaceID  string `json:"workspace_id"`
@@ -105,6 +112,7 @@ type Task struct {
 	CreatorType   string    `json:"creator_type"`
 	CreatorID     string    `json:"creator_id"`
 	ParentIssueID *string          `json:"parent_issue_id"`
+	DuplicateOf   *IssueRef        `json:"duplicate_of"`
 	ProjectID     *string          `json:"project_id"`
 	Position      float64          `json:"position"`
 	Stage         *int             `json:"stage"`
@@ -277,9 +285,10 @@ type UpdateTaskInput struct {
 	DueDate      *string
 	ClearDueDate bool
 	ParentIssueID *string
-	DetachParent  bool
-	ProjectID     *string
-	Assignee     *string
+	DetachParent         bool
+	ProjectID            *string
+	DuplicateOfIssueID   *string
+	Assignee             *string
 	AssigneeType *string
 	Stage        *int
 	ClearStage   bool

@@ -8,16 +8,17 @@ with major version `0` while the project is in active development.
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-09-21
+## [0.3.0] - 2026-09-28
 
 ### Added
 
 - MCP `multica_create_task`: `status`, `start_date`, `due_date`, and `label_ids`.
-- MCP `multica_update_task`: `position`, schedule dates (with clear flags), `parent_issue_id`, `detach_parent`, and `project_id`.
+- MCP `multica_update_task`: `position`, schedule dates (with clear flags), `parent_issue_id`, `detach_parent`, `project_id`, and `duplicate_of_issue_id` (mark as duplicate; cancels the issue per Multica API).
+- Task responses decode `duplicate_of` (original issue ref) when present.
 
 ### Changed
 
-- Multica REST API target bumped from **v0.3.31** to **v0.5.0** (custom issue statuses, labels at create, extended issue/project/agent response fields; aligned with multica-ai/multica through v0.5.0).
+- Multica REST API target bumped from **v0.3.31** to **v0.5.3** (custom issue statuses, labels at create, extended issue/project/agent response fields, issue duplicate marks; aligned with multica-ai/multica through v0.5.3).
 - Task, project, and agent models decode additional API fields (`status_name`, `labels`, `properties`, `revision`, agent runtime metadata, and others).
 - Status validation for updates is delegated to the Multica API (workspace custom statuses are accepted).
 
