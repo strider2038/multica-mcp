@@ -36,6 +36,10 @@ func (u *UseCase) ListProjects(ctx context.Context, input domain.ListProjectsInp
 	return u.client.ListProjects(ctx)
 }
 
+func (u *UseCase) ListStatuses(ctx context.Context) ([]domain.IssueStatus, error) {
+	return u.client.ListStatuses(ctx)
+}
+
 func (u *UseCase) GetProject(ctx context.Context, input domain.GetProjectInput) (*domain.Project, error) {
 	return u.client.GetProject(ctx, input.ProjectID)
 }
@@ -158,10 +162,6 @@ func (u *UseCase) CreateSubtask(ctx context.Context, input domain.CreateSubtaskI
 func (u *UseCase) UpdateTask(ctx context.Context, input domain.UpdateTaskInput) (*domain.CreateTaskResult, error) {
 	if err := u.checkReadOnly(); err != nil {
 		return nil, err
-	}
-
-	if input.Status != nil && !domain.TaskStatus(*input.Status).IsValid() {
-		return nil, fmt.Errorf("invalid status %q; valid values: %s", *input.Status, validStatusList())
 	}
 
 	if input.DryRun {

@@ -75,31 +75,31 @@ type Project struct {
 }
 
 type Task struct {
-	ID            string    `json:"id"`
-	WorkspaceID   string    `json:"workspace_id"`
-	Number        int32     `json:"number"`
-	Identifier    string    `json:"identifier"`
-	Title         string    `json:"title"`
-	Description   *string   `json:"description"`
-	Status        string    `json:"status"`
-	Priority      string    `json:"priority"`
-	AssigneeType  *string   `json:"assignee_type"`
-	AssigneeID    *string   `json:"assignee_id"`
-	CreatorType   string    `json:"creator_type"`
-	CreatorID     string    `json:"creator_id"`
-	ParentIssueID *string          `json:"parent_issue_id"`
-	ProjectID     *string          `json:"project_id"`
-	Position      float64          `json:"position"`
-	Stage         *int             `json:"stage"`
-	StartDate     *string          `json:"start_date"`
-	DueDate       *string          `json:"due_date"`
-	Metadata      map[string]any   `json:"metadata,omitempty"`
-	CreatedAt     string    `json:"created_at"`
-	UpdatedAt     string    `json:"updated_at"`
-	Reactions     []any     `json:"reactions,omitempty"`
-	Attachments   []any     `json:"attachments,omitempty"`
-	Comments      []Comment `json:"comments,omitempty"`
-	Subtasks      []Task    `json:"subtasks,omitempty"`
+	ID            string         `json:"id"`
+	WorkspaceID   string         `json:"workspace_id"`
+	Number        int32          `json:"number"`
+	Identifier    string         `json:"identifier"`
+	Title         string         `json:"title"`
+	Description   *string        `json:"description"`
+	Status        string         `json:"status"`
+	Priority      string         `json:"priority"`
+	AssigneeType  *string        `json:"assignee_type"`
+	AssigneeID    *string        `json:"assignee_id"`
+	CreatorType   string         `json:"creator_type"`
+	CreatorID     string         `json:"creator_id"`
+	ParentIssueID *string        `json:"parent_issue_id"`
+	ProjectID     *string        `json:"project_id"`
+	Position      float64        `json:"position"`
+	Stage         *int           `json:"stage"`
+	StartDate     *string        `json:"start_date"`
+	DueDate       *string        `json:"due_date"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	CreatedAt     string         `json:"created_at"`
+	UpdatedAt     string         `json:"updated_at"`
+	Reactions     []any          `json:"reactions,omitempty"`
+	Attachments   []any          `json:"attachments,omitempty"`
+	Comments      []Comment      `json:"comments,omitempty"`
+	Subtasks      []Task         `json:"subtasks,omitempty"`
 }
 
 type Comment struct {
@@ -173,6 +173,20 @@ type Workspace struct {
 	UpdatedAt   string  `json:"updated_at"`
 }
 
+type IssueStatus struct {
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	Key         string  `json:"key"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Category    string  `json:"category"`
+	Color       string  `json:"color"`
+	Icon        string  `json:"icon"`
+	IsSystem    bool    `json:"is_system"`
+	Position    float64 `json:"position"`
+	ArchivedAt  *string `json:"archived_at"`
+}
+
 type ListProjectsInput struct {
 	Query string
 }
@@ -216,6 +230,7 @@ type CreateTaskInput struct {
 	Title          string
 	Description    string
 	Priority       *string
+	Status         *string
 	Labels         []string
 	Assignee       *string
 	AssigneeType   *string

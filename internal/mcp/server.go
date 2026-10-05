@@ -34,6 +34,7 @@ func NewServer(useCase *app.UseCase, readOnly bool) *Server {
 
 func (s *Server) registerTools(readOnly bool) {
 	s.addTool(listProjectsTool(), s.handleListProjects)
+	s.addTool(listStatusesTool(), s.handleListStatuses)
 	s.addTool(getProjectTool(), s.handleGetProject)
 	s.addTool(listTasksTool(), s.handleListTasks)
 	s.addTool(getTaskTool(), s.handleGetTask)
@@ -76,6 +77,18 @@ func (s *Server) handleListProjects(ctx context.Context, req *mcp.CallToolReques
 	}
 
 	return jsonResult(projects), nil
+}
+
+func listStatusesTool() *mcp.Tool {
+	return newTool("multica_list_statuses", "List active built-in and custom statuses in the workspace. Use a status key (not its display name) with create/update task.", nil, nil)
+}
+
+func (s *Server) handleListStatuses(ctx context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	statuses, err := s.useCase.ListStatuses(ctx)
+	if err != nil {
+		return errorResult("list statuses", err), nil
+	}
+	return jsonResult(statuses), nil
 }
 
 func getProjectTool() *mcp.Tool {
@@ -145,6 +158,7 @@ func createTaskTool() *mcp.Tool {
 		stringProp("title", "Task title"),
 		stringProp("description", "Task description (Markdown supported)"),
 		stringProp("priority", "Task priority: none, urgent, high, medium, low"),
+		stringProp("status", "Optional status key from multica_list_statuses (defaults to todo)"),
 		stringProp("assignee", "Assignee ID (member, agent, or squad)"),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad (inferred from agents list when omitted)"),
 		numberProp("stage", "Optional ordered stage (>= 1) for sub-issue barrier grouping under a parent"),
@@ -158,6 +172,7 @@ func (s *Server) handleCreateTask(ctx context.Context, req *mcp.CallToolRequest)
 		Title:        argsGetString(req, "title"),
 		Description:  argsGetString(req, "description"),
 		Priority:     argsGetStringPtr(req, "priority"),
+		Status:       argsGetStringPtr(req, "status"),
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		Stage:        argsGetIntPtr(req, "stage"),
@@ -208,7 +223,7 @@ func updateTaskTool() *mcp.Tool {
 		stringProp("task_id", "Task ID to update"),
 		stringProp("title", "New title"),
 		stringProp("description", "New description"),
-		stringProp("status", "New status: backlog, todo, in_progress, in_review, done, blocked, cancelled"),
+		stringProp("status", "New status key from multica_list_statuses (built-in or workspace custom key)"),
 		stringProp("priority", "New priority: none, urgent, high, medium, low"),
 		stringProp("assignee", "New assignee ID. Pass an empty string to unassign."),
 		stringProp("assignee_type", "Assignee type: member, agent, or squad"),
@@ -222,11 +237,11 @@ func updateTaskTool() *mcp.Tool {
 
 func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input := domain.UpdateTaskInput{
-		TaskID:      argsGetString(req, "task_id"),
-		Title:       argsGetStringPtr(req, "title"),
-		Description: argsGetStringPtr(req, "description"),
-		Status:      argsGetStringPtr(req, "status"),
-		Priority:    argsGetStringPtr(req, "priority"),
+		TaskID:       argsGetString(req, "task_id"),
+		Title:        argsGetStringPtr(req, "title"),
+		Description:  argsGetStringPtr(req, "description"),
+		Status:       argsGetStringPtr(req, "status"),
+		Priority:     argsGetStringPtr(req, "priority"),
 		Assignee:     argsGetOptionalStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		Stage:        argsGetIntPtr(req, "stage"),
@@ -445,10 +460,10 @@ func (s *Server) handleCreateTaskWithSubtasks(ctx context.Context, req *mcp.Call
 	}
 
 	input := domain.CreateTaskWithSubtasksInput{
-		ProjectID:   argsGetString(req, "project_id"),
-		Title:       argsGetString(req, "title"),
-		Description: argsGetString(req, "description"),
-		Subtasks:    subtaskDefs,
+		ProjectID:    argsGetString(req, "project_id"),
+		Title:        argsGetString(req, "title"),
+		Description:  argsGetString(req, "description"),
+		Subtasks:     subtaskDefs,
 		Assignee:     argsGetStringPtr(req, "assignee"),
 		AssigneeType: argsGetStringPtr(req, "assignee_type"),
 		DryRun:       argsGetBool(req, "dry_run"),

@@ -387,3 +387,50 @@ func assertAuth(t *testing.T, r *http.Request) {
 		t.Errorf("expected Authorization 'Bearer mul_test123', got %q", auth)
 	}
 }
+
+func TestClient_ListStatuses(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/issue-statuses" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("X-Workspace-ID") != "ws1" {
+			t.Errorf("workspace scope missing")
+		}
+		json.NewEncoder(w).Encode(map[string]any{"statuses": []map[string]any{{"key": "ingested", "name": "Ingested", "category": "todo", "is_system": false}}})
+	}))
+	defer ts.Close()
+	c := NewClient(ts.URL, "test-token", "test")
+	c.SetWorkspaceScope("ws1", "")
+	statuses, err := c.ListStatuses(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(statuses) != 1 || statuses[0].Key != "ingested" || statuses[0].Category != "todo" || statuses[0].IsSystem {
+		t.Fatalf("unexpected statuses: %+v", statuses)
+	}
+}
+
+func TestClient_CreateTask_CustomStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["status"] != "ingested" {
+			t.Errorf("custom status not sent: %v", body["status"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{"id": "t1", "status": "ingested"})
+	}))
+	defer ts.Close()
+	c := NewClient(ts.URL, "test-token", "test")
+	c.SetWorkspaceScope("ws1", "")
+	status := "ingested"
+	task, err := c.CreateTask(context.Background(), domain.CreateTaskInput{Title: "Test", Status: &status})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "ingested" {
+		t.Fatalf("unexpected status: %s", task.Status)
+	}
+}

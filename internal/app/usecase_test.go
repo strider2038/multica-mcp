@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/strider2038/multica-mcp/internal/domain"
@@ -187,17 +188,24 @@ func TestCreateTask_DryRun(t *testing.T) {
 
 func TestUpdateTask_InvalidStatus(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("should not make HTTP call for invalid status")
+		if r.Method != http.MethodPut || r.URL.Path != "/api/issues/t1" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["status"] != "invalid_status" {
+			t.Errorf("expected status value forwarded, got %v", body["status"])
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{"error": "invalid issue status"})
 	})
 	defer ts.Close()
-
 	status := "invalid_status"
-	_, err := uc.UpdateTask(context.Background(), domain.UpdateTaskInput{
-		TaskID: "t1",
-		Status: &status,
-	})
-	if err == nil {
-		t.Fatal("expected error for invalid status")
+	_, err := uc.UpdateTask(context.Background(), domain.UpdateTaskInput{TaskID: "t1", Status: &status})
+	if err == nil || !strings.Contains(err.Error(), "invalid issue status") {
+		t.Fatalf("expected backend validation error, got %v", err)
 	}
 }
 

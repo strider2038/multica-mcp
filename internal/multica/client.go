@@ -126,6 +126,16 @@ func (c *Client) ListProjects(ctx context.Context) ([]domain.Project, error) {
 	return resp.Projects, nil
 }
 
+func (c *Client) ListStatuses(ctx context.Context) ([]domain.IssueStatus, error) {
+	var resp struct {
+		Statuses []domain.IssueStatus `json:"statuses"`
+	}
+	if err := c.doGet(ctx, "/api/issue-statuses", &resp, true); err != nil {
+		return nil, fmt.Errorf("list statuses: %w", err)
+	}
+	return resp.Statuses, nil
+}
+
 func (c *Client) GetProject(ctx context.Context, projectID string) (*domain.Project, error) {
 	path := "/api/projects/" + projectID
 	var resp domain.Project
@@ -187,6 +197,9 @@ func (c *Client) CreateTask(ctx context.Context, input domain.CreateTaskInput) (
 	}
 	if input.Priority != nil && *input.Priority != "" {
 		body["priority"] = *input.Priority
+	}
+	if input.Status != nil && *input.Status != "" {
+		body["status"] = *input.Status
 	}
 	if input.Assignee != nil && *input.Assignee != "" {
 		body["assignee_id"] = *input.Assignee
