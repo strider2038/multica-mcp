@@ -72,9 +72,10 @@ type Project struct {
 	DueDate     *string `json:"due_date"`
 	IssueCount  int64   `json:"issue_count"`
 	DoneCount   int64   `json:"done_count"`
-	ResourceCount int64 `json:"resource_count"`
-	CreatedAt   string  `json:"created_at"`
-	UpdatedAt   string  `json:"updated_at"`
+	ResourceCount int64   `json:"resource_count"`
+	WorkflowID    *string `json:"workflow_id"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
 }
 
 type IssueRef struct {
