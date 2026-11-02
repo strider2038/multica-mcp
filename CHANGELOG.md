@@ -18,7 +18,7 @@ with major version `0` while the project is in active development.
 
 ### Changed
 
-- Multica REST API target bumped from **v0.3.31** to **v0.7.0** (custom issue statuses, labels at create, extended issue/project/agent response fields, issue duplicate marks, project `workflow_id`; aligned with multica-ai/multica **v0.7.0** — no REST JSON contract changes for current MCP tools between v0.6.3 and v0.7.0).
+- Multica REST API target bumped from **v0.3.31** to **v0.7.2** (custom issue statuses, labels at create, extended issue/project/agent response fields, issue duplicate marks, project `workflow_id`; aligned with multica-ai/multica **v0.7.2** — no REST JSON contract changes for current MCP tools between v0.6.3 and v0.7.2).
 - Task, project, and agent models decode additional API fields (`status_name`, `labels`, `properties`, `revision`, project `workflow_id`, agent runtime metadata, and others).
 - Status validation for updates is delegated to the Multica API (workspace custom statuses are accepted).
 
