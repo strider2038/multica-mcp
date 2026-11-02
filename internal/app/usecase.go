@@ -160,10 +160,6 @@ func (u *UseCase) UpdateTask(ctx context.Context, input domain.UpdateTaskInput) 
 		return nil, err
 	}
 
-	if input.Status != nil && !domain.TaskStatus(*input.Status).IsValid() {
-		return nil, fmt.Errorf("invalid status %q; valid values: %s", *input.Status, validStatusList())
-	}
-
 	if input.DryRun {
 		return &domain.CreateTaskResult{
 			ID:     input.TaskID,
