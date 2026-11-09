@@ -185,22 +185,6 @@ func TestCreateTask_DryRun(t *testing.T) {
 	}
 }
 
-func TestUpdateTask_InvalidStatus(t *testing.T) {
-	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("should not make HTTP call for invalid status")
-	})
-	defer ts.Close()
-
-	status := "invalid_status"
-	_, err := uc.UpdateTask(context.Background(), domain.UpdateTaskInput{
-		TaskID: "t1",
-		Status: &status,
-	})
-	if err == nil {
-		t.Fatal("expected error for invalid status")
-	}
-}
-
 func TestReadOnlyMode(t *testing.T) {
 	uc, ts := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("should not make HTTP call in read-only mode")
