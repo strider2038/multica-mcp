@@ -5,4 +5,4 @@ package version
 var Version = "0.3.0"
 
 // MulticaAPI is the Multica REST API version this client targets.
-const MulticaAPI = "0.7.2"
+const MulticaAPI = "0.8.1"

@@ -68,6 +68,8 @@ type Project struct {
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
+	CreatorType *string `json:"creator_type"`
+	CreatorID   *string `json:"creator_id"`
 	StartDate   *string `json:"start_date"`
 	DueDate     *string `json:"due_date"`
 	IssueCount  int64   `json:"issue_count"`
